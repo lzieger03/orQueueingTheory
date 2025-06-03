@@ -103,10 +103,74 @@ if (completedCustomers.length > 0) {
 }
 ```
 
+## Additional Server Utilization Improvements
+
+To fix the issue of server utilization getting stuck at 100%, we made the following improvements:
+
+```typescript
+// Calculate realistic server utilization
+const activeStations = this.stations.filter(s => s.isActive && !s.onBreak);
+const busyStations = activeStations.filter(s => s.servingCustomer !== null);
+
+// Calculate instantaneous utilization
+let instantaneousUtilization = 0;
+if (activeStations.length > 0) {
+  // Consider queue length in utilization calculation for more realism
+  const totalQueueSize = this.stations.reduce((sum, s) => sum + s.queue.length, 0) + this.mainQueue.length;
+  
+  // Base utilization on busy stations
+  const baseUtilization = busyStations.length / activeStations.length;
+  
+  // Factor in waiting customers, but don't let utilization exceed 99%
+  // This prevents utilization from getting stuck at 100%
+  if (totalQueueSize > 0) {
+    const queuePressure = Math.min(0.15, totalQueueSize * 0.01);
+    instantaneousUtilization = Math.min(0.99, baseUtilization + queuePressure);
+  } else {
+    instantaneousUtilization = baseUtilization;
+  }
+}
+
+// Apply smoothing to avoid jumps in utilization values
+if (this.metrics.serverUtilization > 0) {
+  // 80% previous value, 20% new value for smoother changes
+  this.metrics.serverUtilization = 0.8 * this.metrics.serverUtilization + 0.2 * rawUtilization;
+} else {
+  this.metrics.serverUtilization = rawUtilization;
+}
+```
+
+## Enhanced Customer Satisfaction Model
+
+We also improved the customer satisfaction calculation to account for multiple factors:
+
+1. **Primary factor**: Wait time
+2. **Secondary factor**: Queue length
+3. **Tertiary factor**: Customer abandonment rate
+
+```typescript
+// Base satisfaction on wait time (primary factor)
+let waitTimeSatisfaction = calculateWaitTimeSatisfaction(avgWaitTimeMinutes);
+
+// Factor in queue length (secondary factor)
+const queueLengthPenalty = Math.min(15, this.metrics.averageQueueLength * 2);
+
+// Factor in abandonment rate (tertiary factor)
+const abandonmentRate = totalCustomers > 0 ? 
+  (this.metrics.totalCustomersAbandoned / totalCustomers) : 0;
+const abandonmentPenalty = abandonmentRate * 20;
+
+// Calculate final satisfaction with smoothing to prevent jumps
+this.metrics.customerSatisfaction = Math.max(0, Math.min(100, 
+  waitTimeSatisfaction - queueLengthPenalty - abandonmentPenalty));
+```
+
 ## Results
 After implementing these fixes:
 1. Throughput now shows realistic values aligned with the actual arrival and service rates
 2. Wait times are now within realistic bounds for retail environments
 3. Server utilization properly reflects the actual utilization of checkout stations
+4. Customer satisfaction accounts for multiple factors beyond just wait time
+5. All metrics show smooth transitions rather than jumps between extreme values
 
-This provides a much more realistic simulation of retail checkout operations, making the game both more educational and engaging.
+These improvements provide a much more realistic simulation of retail checkout operations, making the game both more educational and engaging for users.

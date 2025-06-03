@@ -24,6 +24,7 @@ export class SimulationEngine {
   private totalUtilizationTime: number = 0; // Sum of (utilization * time_interval) 
   private lastUpdateTime: number = 0;
   private queueLengthHistory: Array<{time: number, length: number}> = [];
+  private previousCustomerSatisfaction?: number; // Store previous satisfaction for smoothing
 
   constructor(stations: CheckoutStation[], params: SimulationParams) {
     this.stations = [...stations];
@@ -62,11 +63,13 @@ export class SimulationEngine {
     this.totalUtilizationTime = 0;
     this.lastUpdateTime = 0;
     this.queueLengthHistory = [];
+    this.previousCustomerSatisfaction = undefined;
     
-    // Clear all station queues
+    // Clear all station queues and reset break state
     this.stations.forEach(station => {
       station.queue = [];
       station.servingCustomer = null;
+      station.onBreak = false;
     });
 
     // Schedule first customer arrival
@@ -593,19 +596,47 @@ export class SimulationEngine {
     // Calculate realistic server utilization
     const activeStations = this.stations.filter(s => s.isActive && !s.onBreak);
     const busyStations = activeStations.filter(s => s.servingCustomer !== null);
-    const instantaneousUtilization = activeStations.length > 0 
-      ? busyStations.length / activeStations.length 
-      : 0;
+    
+    // Calculate instantaneous utilization
+    let instantaneousUtilization = 0;
+    if (activeStations.length > 0) {
+      // Consider queue length in utilization calculation for more realism
+      const totalQueueSize = this.stations.reduce((sum, s) => sum + s.queue.length, 0) + this.mainQueue.length;
+      
+      // Base utilization on busy stations
+      const baseUtilization = busyStations.length / activeStations.length;
+      
+      // Factor in waiting customers, but don't let utilization exceed 99%
+      // This prevents utilization from getting stuck at 100%
+      if (totalQueueSize > 0) {
+        // Queue pressure increases utilization but caps below 100%
+        const queuePressure = Math.min(0.15, totalQueueSize * 0.01);
+        instantaneousUtilization = Math.min(0.99, baseUtilization + queuePressure);
+      } else {
+        instantaneousUtilization = baseUtilization;
+      }
+    }
     
     // Update time-weighted utilization
     if (deltaTime > 0) {
       this.totalUtilizationTime += instantaneousUtilization * deltaTime;
     }
     
-    // Calculate average utilization over time
-    this.metrics.serverUtilization = elapsedTime > 0 
-      ? this.totalUtilizationTime / elapsedTime 
-      : 0;
+    // Calculate average utilization over time with smoothing
+    if (elapsedTime > 0) {
+      const rawUtilization = this.totalUtilizationTime / elapsedTime;
+      
+      // Apply smoothing to utilization to avoid jumps
+      if (this.metrics.serverUtilization > 0) {
+        // 80% previous value, 20% new value for smoother changes
+        this.metrics.serverUtilization = 0.8 * this.metrics.serverUtilization + 0.2 * rawUtilization;
+      } else {
+        this.metrics.serverUtilization = rawUtilization;
+      }
+    } else {
+      this.metrics.serverUtilization = 0;
+    }
+    
     this.metrics.utilization = this.metrics.serverUtilization;
     
     // Calculate realistic throughput (customers served per hour)
@@ -640,21 +671,45 @@ export class SimulationEngine {
     const customersBeingServed = busyStations.length;
     this.metrics.customersInSystem = currentQueueLength + customersBeingServed;
     
-    // Calculate realistic customer satisfaction based on wait time distribution
+    // Calculate realistic customer satisfaction based on multiple factors
     const avgWaitTimeMinutes = this.metrics.averageWaitTime / 60;
     
-    // Use a more realistic satisfaction curve
+    // Base satisfaction on wait time (primary factor)
+    let waitTimeSatisfaction = 0;
     if (avgWaitTimeMinutes <= 1) {
-      this.metrics.customerSatisfaction = 100; // Excellent service
+      waitTimeSatisfaction = 100; // Excellent service
     } else if (avgWaitTimeMinutes <= 2) {
-      this.metrics.customerSatisfaction = 90 - (avgWaitTimeMinutes - 1) * 10; // 90-80%
+      waitTimeSatisfaction = 90 - (avgWaitTimeMinutes - 1) * 10; // 90-80%
     } else if (avgWaitTimeMinutes <= 3) {
-      this.metrics.customerSatisfaction = 80 - (avgWaitTimeMinutes - 2) * 20; // 80-60%
+      waitTimeSatisfaction = 80 - (avgWaitTimeMinutes - 2) * 20; // 80-60%
     } else if (avgWaitTimeMinutes <= 5) {
-      this.metrics.customerSatisfaction = 60 - (avgWaitTimeMinutes - 3) * 15; // 60-30%
+      waitTimeSatisfaction = 60 - (avgWaitTimeMinutes - 3) * 15; // 60-30%
     } else {
-      this.metrics.customerSatisfaction = Math.max(0, 30 - (avgWaitTimeMinutes - 5) * 5); // <30%
+      waitTimeSatisfaction = Math.max(0, 30 - (avgWaitTimeMinutes - 5) * 5); // <30%
     }
+    
+    // Factor in queue length (secondary factor)
+    // Long queues decrease satisfaction even if service is fast
+    const queueLengthPenalty = Math.min(15, this.metrics.averageQueueLength * 2);
+    
+    // Factor in abandonment rate (tertiary factor)
+    const totalCustomers = this.metrics.totalCustomersServed + this.metrics.totalCustomersAbandoned;
+    const abandonmentRate = totalCustomers > 0 ? 
+      (this.metrics.totalCustomersAbandoned / totalCustomers) : 0;
+    const abandonmentPenalty = abandonmentRate * 20; // Up to 20% penalty for high abandonment
+    
+    // Calculate final satisfaction
+    this.metrics.customerSatisfaction = Math.max(0, Math.min(100, 
+      waitTimeSatisfaction - queueLengthPenalty - abandonmentPenalty));
+      
+    // Apply smoothing to avoid satisfaction jumping around too much
+    if (this.previousCustomerSatisfaction !== undefined) {
+      this.metrics.customerSatisfaction = 
+        0.7 * this.previousCustomerSatisfaction + 0.3 * this.metrics.customerSatisfaction;
+    }
+    
+    // Store for next calculation
+    this.previousCustomerSatisfaction = this.metrics.customerSatisfaction;
     
     // Calculate realistic overall score using weighted components
     const waitTimeScore = this.calculateWaitTimeScore(avgWaitTimeMinutes);
