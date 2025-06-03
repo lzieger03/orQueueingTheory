@@ -1,0 +1,25 @@
+Customer,Items Bought,Service Time (s),Payment Method,Notes,Cashier
+1,4.0,88,Card,,A
+2,1.0,83,Cash,,A
+3,2.0,79,Voucher & Card,,A
+4,5.0,81,Cash,,A
+5,4.0,89,Cash,,A
+6,4.0,84,Voucher & Card,,A
+Break,,24,,Break,
+7,3.0,84,Card,,A
+8,3.0,81,Cash,,A
+9,2.0,71,Card,,A
+Break,,30,,Break,
+10,8.0,71,Card,,A
+11,3.0,81,Cash,,A
+12,4.0,78,Card,,A
+13,1.0,84,Card,Self-checkout,A
+14,3.0,74,Card,,A
+15,1.0,73,Cash,,A
+16,4.0,82,Card,,A
+17,4.0,93,Card,,A
+18,4.0,92,Card,,A
+19,1.0,78,Card,,A
+20,2.0,87,Cash,Promo used,A
+Break,,29,,Break,
+21,1.0,84,Card,,A

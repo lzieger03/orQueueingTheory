@@ -1,0 +1,324 @@
+// Custom hook for managing game state with XState
+import { useState, useEffect, useCallback } from 'react';
+import { useMachine } from '@xstate/react';
+import { createMachine, assign } from 'xstate';
+import type { 
+  GameStore, 
+  CheckoutStation, 
+  SimulationParams, 
+  GameState,
+  AIRecommendation 
+} from '../types';
+import { SimulationEngine } from '../simulation/engine';
+import { QLearningAgent } from '../ai/qlearning';
+import { defaultSimulationParams } from '../data/samples';
+import { simulationHistory } from '../data/simulationHistory';
+import { generateSimulationData } from '../utils/simulationHelper';
+
+// Game state machine definition
+const gameStateMachine = createMachine({
+  id: 'checkoutGame',
+  initial: 'editing',
+  predictableActionArguments: true,
+  context: {
+    state: 'editing' as GameState,
+    stations: [],
+    customers: [],
+    mainQueue: [], // Initialize empty main queue
+    // Initialize metrics from first simulation history entry
+    metrics: simulationHistory.length > 0 ? {
+      averageWaitTime: simulationHistory[0].averageWaitTime,
+      averageQueueLength: simulationHistory[0].queueLength,
+      serverUtilization: simulationHistory[0].utilization,
+      utilization: simulationHistory[0].utilization,
+      throughput: simulationHistory[0].throughput,
+      totalCustomersServed: simulationHistory[0].customersServed,
+      totalCustomersAbandoned: 0,
+      peakQueueLength: simulationHistory[0].queueLength,
+      customersInSystem: simulationHistory[0].queueLength,
+      customerSatisfaction: 0,
+      score: 0
+    } : {
+      averageWaitTime: 0,
+      averageQueueLength: 0,
+      serverUtilization: 0,
+      utilization: 0,
+      throughput: 0,
+      totalCustomersServed: 0,
+      totalCustomersAbandoned: 0,
+      peakQueueLength: 0,
+      customersInSystem: 0,
+      customerSatisfaction: 0,
+      score: 0
+    },
+    simulationParams: defaultSimulationParams,
+    currentTime: 0,
+    eventQueue: [],
+    isAIEnabled: false,
+    aiRecommendations: [],
+    simulationHistory: simulationHistory
+  } as GameStore,
+  states: {
+    editing: {
+      on: {
+        START_SIMULATION: 'simulating',
+        ENABLE_AI: { target: 'editing', actions: 'enableAI' },
+        UPDATE_STATIONS: { target: 'editing', actions: 'updateStations' },
+        UPDATE_PARAMS: { target: 'editing', actions: 'updateParams' }
+      }
+    },
+    simulating: {
+      on: {
+        PAUSE: 'paused',
+        STOP: 'editing',
+        COMPLETE: 'complete',
+        UPDATE_SIMULATION: { target: 'simulating', actions: 'updateSimulation' }
+      }
+    },
+    paused: {
+      on: {
+        RESUME: 'simulating',
+        STOP: 'editing'
+      }
+    },
+    complete: {
+      on: {
+        RESET: 'editing',
+        NEW_SIMULATION: 'simulating'
+      }
+    }
+  },
+  // Handle loading realistic simulation history
+  on: {
+    SET_SIMULATION_HISTORY: { actions: 'setSimulationHistory' }
+  }
+}, {
+  actions: {
+    enableAI: assign({
+      isAIEnabled: true
+    }),
+    updateStations: assign({
+      stations: (_, event: any) => event.stations
+    }),
+    updateParams: assign({
+      simulationParams: (_, event: any) => event.params
+    }),
+    setSimulationHistory: assign({ simulationHistory: (_, event: any) => event.simulationHistory }),
+    updateSimulation: assign({
+      customers: (_, event: any) => event.customers,
+      metrics: (_, event: any) => event.metrics,
+      currentTime: (_, event: any) => event.currentTime,
+      stations: (_, event: any) => event.stations,
+      mainQueue: (_, event: any) => event.mainQueue || [] // Update main queue
+    })
+  }
+});
+
+export function useGameState() {
+  const [state, send] = useMachine(gameStateMachine);
+  const [simulationEngine, setSimulationEngine] = useState<SimulationEngine | null>(null);
+  const [aiAgent, setAiAgent] = useState<QLearningAgent | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [animationFrame, setAnimationFrame] = useState<number | null>(null);
+
+  // Initialize AI agent
+  useEffect(() => {
+    if (state.context.isAIEnabled && !aiAgent) {
+      setAiAgent(new QLearningAgent());
+    }
+  }, [state.context.isAIEnabled, aiAgent]);
+
+  // Load realistic simulation history
+  useEffect(() => {
+    (async () => {
+      const data = await generateSimulationData(state.context.simulationParams.dayType);
+      send({ type: 'SET_SIMULATION_HISTORY', simulationHistory: data });
+    })();
+  }, [send, state.context.simulationParams.dayType]);
+
+  // Start simulation
+  const startSimulation = useCallback(async () => {
+    if (state.context.stations.length === 0) {
+      alert('Please add at least one checkout station before starting simulation');
+      return;
+    }
+
+    // Load realistic simulation data from CSV based on dayType
+    try {
+      const history = await generateSimulationData(state.context.simulationParams.dayType);
+      send({ type: 'SET_SIMULATION_HISTORY', simulationHistory: history });
+    } catch (err) {
+      console.error('Failed to load simulation data', err);
+    }
+
+    const engine = new SimulationEngine(
+      state.context.stations,
+      state.context.simulationParams
+    );
+    setSimulationEngine(engine);
+    setIsRunning(true);
+    send({ type: 'START_SIMULATION' });
+  }, [state.context.stations, state.context.simulationParams, send]);
+
+  // Pause simulation
+  const pauseSimulation = useCallback(() => {
+    setIsRunning(false);
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+      setAnimationFrame(null);
+    }
+    send({ type: 'PAUSE' });
+  }, [animationFrame, send]);
+
+  // Resume simulation
+  const resumeSimulation = useCallback(() => {
+    setIsRunning(true);
+    send({ type: 'RESUME' });
+  }, [send]);
+
+  // Stop simulation
+  const stopSimulation = useCallback(() => {
+    setIsRunning(false);
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+      setAnimationFrame(null);
+    }
+    setSimulationEngine(null);
+    send({ type: 'STOP' });
+  }, [animationFrame, send]);
+
+  // Reset game
+  const resetGame = useCallback(() => {
+    setIsRunning(false);
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+      setAnimationFrame(null);
+    }
+    setSimulationEngine(null);
+    send({ type: 'RESET' });
+  }, [animationFrame, send]);
+
+  // Update stations
+  const updateStations = useCallback((stations: CheckoutStation[]) => {
+    send({ type: 'UPDATE_STATIONS', stations });
+  }, [send]);
+
+  // Update simulation parameters
+  const updateParams = useCallback((params: Partial<SimulationParams>) => {
+    const updatedParams = { ...state.context.simulationParams, ...params };
+    send({ type: 'UPDATE_PARAMS', params: updatedParams });
+  }, [state.context.simulationParams, send]);
+
+  // Enable AI
+  const enableAI = useCallback(() => {
+    send({ type: 'ENABLE_AI' });
+  }, [send]);
+
+  // Generate AI recommendations
+  const generateAIRecommendations = useCallback((): AIRecommendation[] => {
+    if (!aiAgent || !state.context.isAIEnabled) return [];
+
+    const queueLengths = state.context.stations.map(s => s.queue.length);
+    const activeStations = state.context.stations.filter(s => s.isActive).length;
+    const currentHour = Math.floor((state.context.currentTime / 3600) % 24);
+
+    const qState = {
+      queueLengths,
+      activeStations,
+      dayType: state.context.simulationParams.dayType,
+      timeOfDay: currentHour
+    };
+
+    return aiAgent.generateRecommendations(qState, state.context.stations);
+  }, [aiAgent, state.context]);
+
+  // Animation loop for real-time simulation
+  useEffect(() => {
+    if (isRunning && simulationEngine && state.matches('simulating')) {
+      let lastUpdate = 0;
+      const targetFPS = 30; // Limit to 30 FPS for better performance
+      const frameInterval = 1000 / targetFPS;
+      
+      const animate = (timestamp: number = 0) => {
+        if (timestamp - lastUpdate < frameInterval) {
+          const frame = requestAnimationFrame(animate);
+          setAnimationFrame(frame);
+          return;
+        }
+        lastUpdate = timestamp;
+        
+         const hasMore = simulationEngine.step();
+         
+         // Get fresh metrics after each simulation step
+         const currentMetrics = simulationEngine.getCurrentMetrics();
+         
+         // Update state with current simulation data
+         send({
+           type: 'UPDATE_SIMULATION',
+           customers: simulationEngine.getCustomers(),
+           metrics: currentMetrics,
+           currentTime: simulationEngine.getCurrentTime(),
+           stations: simulationEngine.getStations(),
+           mainQueue: simulationEngine.getMainQueue() // Add main queue to state update
+         });
+
+         if (hasMore) {
+           const frame = requestAnimationFrame(animate);
+           setAnimationFrame(frame);
+         } else {
+           setIsRunning(false);
+           send({ type: 'COMPLETE' });
+         }
+       };
+
+       const frame = requestAnimationFrame(animate);
+       setAnimationFrame(frame);
+
+       return () => {
+         if (frame) {
+           cancelAnimationFrame(frame);
+         }
+       };
+     }
+   }, [isRunning, simulationEngine, state, send]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+      }
+    };
+  }, [animationFrame]);
+
+  return {
+    // State
+    gameState: state.value as GameState,
+    context: state.context,
+    isRunning,
+    
+    // Actions
+    startSimulation,
+    pauseSimulation,
+    resumeSimulation,
+    stopSimulation,
+    resetGame,
+    updateStations,
+    updateParams,
+    enableAI,
+    generateAIRecommendations,
+    
+    // Utils
+    canStartSimulation: state.context.stations.length > 0,
+    canPause: state.matches('simulating') && isRunning,
+    canResume: state.matches('paused'),
+    canStop: state.matches('simulating') || state.matches('paused'),
+    canReset: state.matches('complete'),
+    
+    // Simulation engine reference (for advanced operations)
+    simulationEngine,
+    aiAgent
+  };
+}
+
+export default useGameState;

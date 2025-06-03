@@ -1,0 +1,39 @@
+Customer,Items Bought,Service Time (s),Payment Method,Notes,Cashier
+1,1,50,Card,,A
+2,3,60,Cash,,B
+3,4,42,Card,,A
+4,4,49,Card,Card error,B
+5,1,42,Card,,A
+6,5,41,Card,,B
+7,1,37,Voucher & Card,,A
+8,3,56,Cash,,B
+9,4,51,Card,,A
+10,6,56,Card,,B
+11,4,53,Cash,,A
+12,4,34,Voucher & Card,,B
+13,2,63,Cash,,A
+14,4,39,Card,,B
+15,2,44,Card,,B
+16,3,52,Card,,A
+17,1,52,Card,,B
+18,3,52,Card,,A
+19,4,52,Card,,B
+20,3,48,Card,,A
+21,3,33,Card,,B
+22,1,41,Voucher & Card,Self-checkout,A
+23,1,45,Card,,B
+24,1,49,Card,,A
+25,2,44,Cash,,B
+26,1,61,Card,,A
+27,2,54,Card,,B
+28,4,33,Cash,,A
+29,3,49,Cash,,B
+30,3,39,Card,,A
+31,1,46,Card,,B
+32,4,44,Card,,A
+33,3,35,Card,,B
+34,3,41,Card,Self-checkout,A
+35,2,49,Card,,B
+36,2,58,Card,,A
+37,3,52,Card,,B
+38,1,54,Card,,A

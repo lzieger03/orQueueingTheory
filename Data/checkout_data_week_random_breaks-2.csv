@@ -1,0 +1,8 @@
+Day,Customers,Cashiers,Total Service Time (s),Total Break Time (s),Total Window (s),Number of Breaks,Mean Service Time (s),SD Service Time (s)
+Monday,20,1,1750,50,1800,2,87.5,9.6
+Tuesday,26,1,1678,122,1800,4,64.5,9.6
+Wednesday,21,1,1725,75,1800,3,82.1,9.0
+Thursday,21,1,1717,83,1800,3,81.8,6.2
+Friday,18,1,1737,63,1800,2,96.5,8.5
+Saturday,36,2,1800,0,1800,0,50.0,5.5
+Sunday,38,2,1800,0,1800,0,47.4,7.9

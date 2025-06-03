@@ -1,0 +1,37 @@
+Customer,Items Bought,Service Time (s),Payment Method,Notes,Cashier
+1,1,66,Cash,,A
+2,1,57,Card,,B
+3,8,59,Cash,,B
+4,2,42,Card,,A
+5,2,51,Card,,A
+6,1,51,Voucher & Card,,B
+7,1,41,Card,,A
+8,1,51,Card,,B
+9,2,54,Card,,A
+10,1,46,Card,,B
+11,5,52,Card,No bag,A
+12,2,53,Card,,B
+13,3,50,Card,,A
+14,3,54,Cash,No bag,B
+15,6,52,Card,,A
+16,4,56,Cash,,B
+17,3,46,Card,,A
+18,1,50,Voucher & Card,,B
+19,4,51,Card,,A
+20,4,42,Voucher & Card,,B
+21,1,50,Card,,A
+22,3,47,Cash,,B
+23,1,51,Card,,A
+24,4,56,Cash,,B
+25,4,51,Card,,A
+26,1,55,Card,,B
+27,4,49,Voucher & Card,,A
+28,3,53,Voucher & Card,,B
+29,4,42,Cash,Card error,A
+30,4,53,Cash,,B
+31,1,46,Cash,,A
+32,3,45,Card,,B
+33,1,48,Cash,,A
+34,3,45,Card,,B
+35,1,39,Cash,,A
+36,7,46,Card,,B
