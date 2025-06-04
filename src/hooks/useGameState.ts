@@ -269,8 +269,16 @@ export function useGameState() {
         // Apply simulation speed - determine if we should step the simulation in this frame
         const currentTime = performance.now();
         const timeSinceLastStep = currentTime - lastStepTime;
-        const stepInterval = Math.max(50, 200 / state.context.simulationSpeed); // Adjust step interval based on speed
         
+        // Calculate step interval - higher for slower speeds, lower for faster speeds
+        // For speeds < 1, we increase the interval proportionally to slow down the simulation
+        const speed = state.context.simulationSpeed;
+        const baseStepInterval = 200;  // base interval in ms
+        const stepInterval = speed < 1 
+          ? baseStepInterval / speed  // Slower: increase interval (e.g. 0.5 speed = 400ms interval)
+          : Math.max(50, baseStepInterval / speed); // Faster: decrease interval with a min of 50ms
+        
+        // Determine if we should step in this frame based on elapsed time and speed
         let shouldStep = false;
         if (lastStepTime === 0 || timeSinceLastStep >= stepInterval) {
           shouldStep = true;
@@ -279,11 +287,26 @@ export function useGameState() {
         
         let hasMore = true;
         if (shouldStep) {
-          // Perform more steps for higher simulation speeds
-          const stepsToPerform = Math.max(1, Math.floor(state.context.simulationSpeed / 2));
-          
-          for (let i = 0; i < stepsToPerform && hasMore; i++) {
-            hasMore = simulationEngine.step();
+          // For speeds < 1, we need to potentially skip some frames
+          // For speeds > 1, we perform multiple steps per frame
+          const willStepThisFrame = speed < 1 
+            ? Math.random() < speed // Probabilistic approach for slow speeds
+            : true;
+            
+          if (willStepThisFrame) {
+            // Calculate steps to perform based on speed
+            // For slow speeds (< 1), always do just one step
+            // For high speeds (> 1), do multiple steps proportionally
+            const stepsToPerform = speed <= 1 
+              ? 1 
+              : Math.max(1, Math.floor(speed));
+            
+            // Log the actual simulation speed effect for debugging
+            console.log(`Speed: ${speed}x, Steps: ${stepsToPerform}, Interval: ${stepInterval.toFixed(0)}ms`);
+            
+            for (let i = 0; i < stepsToPerform && hasMore; i++) {
+              hasMore = simulationEngine.step();
+            }
           }
           
           // Get fresh metrics after simulation steps
