@@ -341,17 +341,46 @@
   /* Slow motion version of queueFlow for ultra-slow speeds */
   .slow-motion-queue {
     animation-name: slowQueueFlow;
-    animation-timing-function: linear;
+    animation-timing-function: ease-in-out;
     animation-duration: 8s !important;
+    transition-duration: calc(var(--transition-base, 1s) * 2) !important;
+  }
+  
+  /* Ultra slow motion animations */
+  .ultra-slow-motion {
+    animation-duration: 15s !important;
+    transition-duration: 10s !important;
   }
 
-  /* Performance indicator animations */
-  .performance-excellent {
-    animation: successPulse 2s ease-in-out infinite;
+  /* Animation for customers moving to checkout stations */
+  @keyframes moveToCheckout {
+    0% { opacity: 1; transform: translate(0, 0) scale(1); }
+    50% { opacity: 0.8; transform: translate(var(--move-x), var(--move-y)) scale(1.1); }
+    100% { opacity: 0.6; transform: translate(var(--move-x), var(--move-y)) scale(1); }
   }
-
-  .performance-poor {
-    animation: warningShake 1s ease-in-out infinite;
+  
+  /* Enhanced animations for customer motion at slow speeds */
+  .customer-moving-slow {
+    animation: customerMoveEnhanced 8s ease-in-out forwards;
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+    z-index: 40;
+  }
+  
+  .customer-moving-ultra-slow {
+    animation: customerMoveEnhanced 15s ease-in-out forwards;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+    z-index: 40;
+    position: relative;
+  }
+  
+  @keyframes customerMoveEnhanced {
+    0% { opacity: 0.8; transform: translate(0, 0) scale(1); }
+    10% { opacity: 0.9; transform: translate(calc(var(--move-x) * 0.1), calc(var(--move-y) * 0.1)) scale(1.02); }
+    30% { opacity: 1; transform: translate(calc(var(--move-x) * 0.3), calc(var(--move-y) * 0.3)) scale(1.05); }
+    50% { opacity: 1; transform: translate(calc(var(--move-x) * 0.5), calc(var(--move-y) * 0.5)) scale(1.08); }
+    70% { opacity: 0.95; transform: translate(calc(var(--move-x) * 0.7), calc(var(--move-y) * 0.7)) scale(1.05); }
+    90% { opacity: 0.9; transform: translate(calc(var(--move-x) * 0.9), calc(var(--move-y) * 0.9)) scale(1.02); }
+    100% { opacity: 0.8; transform: translate(var(--move-x), var(--move-y)) scale(1); }
   }
 
   /* Customer animation classes */
@@ -675,6 +704,7 @@ input:focus {
 }
 
 /* Animation speed utility classes for various simulation speeds */
+.speed-0-1x { animation-duration: 10s !important; transition-duration: 10s !important; }
 .speed-0-25x { animation-duration: 4s !important; transition-duration: 4s !important; }
 .speed-0-5x { animation-duration: 2s !important; transition-duration: 2s !important; }
 .speed-1x { animation-duration: 1s !important; transition-duration: 1s !important; }

@@ -139,11 +139,15 @@ function DraggableStation({
       {isSimulating && queuePositions.map((pos, index) => (
         <div
           key={index}
-          className="customer-icon absolute customer-waiting"
+          className={`customer-icon absolute customer-waiting 
+            ${simulationSpeed <= 0.1 ? 'ultra-slow-motion' : simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
           style={{ 
             left: pos.x - station.position.x, 
             top: pos.y - station.position.y,
-            animationDuration: `${animationTime * 3}s`
+            animationDuration: `${animationTime * 3}s`,
+            transitionDuration: `${animationTime * 1.5}s`,
+            '--move-x': `${pos.x - station.position.x}px`,
+            '--move-y': `${pos.y - station.position.y}px`
           }}
         />
       ))}
@@ -399,12 +403,16 @@ export function LayoutEditor({
                 station.servingCustomer?.id === customer.id 
                   ? 'customer-being-served' 
                   : 'customer-waiting'
-              }`}
+              } ${simulationSpeed <= 0.1 ? 'ultra-slow-motion' : simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
               style={{ 
                 left: position.x, 
                 top: position.y,
                 transition: `all ${animationTime}s ease`,
                 animationDuration: `${animationTime * 3}s`,
+                ...({
+                  '--move-x': `${position.x}px`,
+                  '--move-y': `${position.y}px`
+                } as React.CSSProperties)
               }}
               title={`Customer ${customer.id} - ${customer.itemCount} items`}
             />

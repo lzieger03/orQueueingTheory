@@ -14,13 +14,17 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
     return calculateMainQueuePositions(queue);
   }, [queue]);
 
+  // Calculate animation times based on simulation speed
+  const animationTime = Math.max(0.5, 2.5 / (simulationSpeed || 1));
+  const transitionTime = Math.max(0.8, 3.0 / (simulationSpeed || 1));
+  
   // Don't render if not simulating or queue is empty
   if (!isSimulating || queue.length === 0) {
     return null;
   }
 
   return (
-    <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 z-20">
+    <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 z-30">
       <div className="relative">
         {/* Queue Label */}
         <div className="absolute -top-8 left-0 right-0 text-center font-semibold text-sm text-white bg-indigo-700 px-2 py-1 rounded-md shadow-lg">
@@ -52,14 +56,16 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
             key={customer.id}
             className={`customer-icon absolute w-4 h-4 rounded-full customer-waiting ${
               customer.prefersSelfCheckout ? 'bg-green-500' : 'bg-blue-500'
-            } ${simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
+            } ${simulationSpeed <= 0.1 ? 'ultra-slow-motion' : simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
             style={{ 
               boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
               transform: 'scale(1)',
               left: queuePositions.positions[index]?.x || 0,
               top: queuePositions.positions[index]?.y || 0,
-              transition: `all ${Math.max(0.5, 1.5 / simulationSpeed)}s ease`,
-              animationDuration: `${Math.max(3, 3 / Math.min(simulationSpeed, 1))}s`
+              transition: `all ${transitionTime}s ease`,
+              animationDuration: `${animationTime * 3}s`,
+              '--move-x': '0px',
+              '--move-y': '0px'
             }}
           >
             {/* Item count indicator */}

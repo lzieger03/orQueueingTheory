@@ -7,7 +7,8 @@ The Checkout Layout Game now features improved simulation speed controls that al
 2. Speeding up the simulation to quickly see results
 3. Finding the optimal speed for different devices and use cases
 
-## How to Use
+## Speed Control Options
+
 The simulation speed control is located at the top of the game interface. It's a blue button labeled "Simulation Speed" with the current speed setting displayed.
 
 - Click the button to cycle through available speed settings

@@ -137,11 +137,12 @@ function DraggableStation({
       {isSimulating && queuePositions.map((pos, index) => (
         <div
           key={index}
-          className="customer-icon absolute animate-bounceSubtle"
+          className={`customer-icon absolute animate-bounceSubtle ${simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
           style={{ 
             left: pos.x - station.position.x, 
             top: pos.y - station.position.y,
-            animationDuration: `${Math.max(0.5, 2.5 / simulationSpeed)}s` 
+            animationDuration: `${Math.max(0.5, 2.5 / simulationSpeed)}s`,
+            transitionDuration: `${Math.max(0.8, 3.0 / simulationSpeed)}s`
           }}
         />
       ))}

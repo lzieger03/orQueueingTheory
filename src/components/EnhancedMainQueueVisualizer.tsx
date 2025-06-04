@@ -1,5 +1,14 @@
 // Main Queue Visualizer component for centralized queue
-import { useMemo } from 'react';
+            style={{ 
+              boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
+              transform: 'scale(1)',
+              left: queuePositions.positions[index]?.x || 0,
+              top: queuePositions.positions[index]?.y || 0,
+              transition: `all ${animationTime}s ease`,
+              animationDuration: `${animationTime * 3}s`,
+              '--move-x': '0px',
+              '--move-y': '0px'
+            }} useMemo } from 'react';
 import type { Customer } from '../types';
 
 interface MainQueueVisualizerProps {
@@ -16,17 +25,15 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
 
   // Calculate animation times based on simulation speed
   const animationTime = Math.max(0.5, 2.5 / (simulationSpeed || 1));
+  const transitionTime = Math.max(0.8, 3.0 / (simulationSpeed || 1));
   
-  // Determine if we should use slow motion animations for very low speeds
-  const useSlowMotion = simulationSpeed <= 0.25;
-
   // Don't render if not simulating or queue is empty
   if (!isSimulating || queue.length === 0) {
     return null;
   }
 
   return (
-    <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 z-20">
+    <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 z-30">
       <div className="relative">
         {/* Queue Label */}
         <div className="absolute -top-8 left-0 right-0 text-center font-semibold text-sm text-white bg-indigo-700 px-2 py-1 rounded-md shadow-lg">
@@ -62,7 +69,7 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
               transform: 'scale(1)',
               left: queuePositions.positions[index]?.x || 0,
               top: queuePositions.positions[index]?.y || 0,
-              transition: `all ${animationTime}s ease`,
+              transition: `all ${transitionTime}s ease`,
               animationDuration: `${animationTime * 3}s`
             }}
           >

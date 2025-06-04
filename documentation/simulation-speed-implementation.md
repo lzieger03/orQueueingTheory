@@ -3,7 +3,7 @@
 ## Overview
 This document describes the technical implementation of the simulation speed control in the Checkout Layout Game, focusing on how the simulation speed affects the event processing and animation timing.
 
-## Technical Implementation
+## Algorithm Overview
 
 ### Core Simulation Speed Algorithm
 
