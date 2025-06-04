@@ -329,6 +329,22 @@
     100% { transform: translateY(0) scale(1); }
   }
 
+  /* Enhanced animation for ultra-slow speeds */
+  @keyframes slowQueueFlow {
+    0% { transform: translateY(0) scale(1); box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+    25% { transform: translateY(-2px) scale(1.03); box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+    50% { transform: translateY(-4px) scale(1.06); box-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
+    75% { transform: translateY(-2px) scale(1.03); box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+    100% { transform: translateY(0) scale(1); box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+  }
+
+  /* Slow motion version of queueFlow for ultra-slow speeds */
+  .slow-motion-queue {
+    animation-name: slowQueueFlow;
+    animation-timing-function: linear;
+    animation-duration: 8s !important;
+  }
+
   /* Performance indicator animations */
   .performance-excellent {
     animation: successPulse 2s ease-in-out infinite;
@@ -347,6 +363,7 @@
   .customer-waiting {
     animation: queueFlow 3s ease-in-out infinite;
     will-change: transform;
+    animation-play-state: running;
   }
 
   .customer-being-served {

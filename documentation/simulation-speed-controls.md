@@ -38,6 +38,8 @@ If the simulation speed control is not responding:
 - Your preferred simulation speed is now saved automatically between sessions
 - Ultra-slow 0.1x speed is available for detailed analysis of customer movement
 - Visual indicator reminds you to set speed before starting the simulation
+- Main queue now positioned at the bottom of the screen for better visibility
+- Enhanced animations at very slow speeds (0.1x, 0.25x) for improved clarity
 
 ## Future Improvements
 - Add keyboard shortcuts for changing simulation speed

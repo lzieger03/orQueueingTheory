@@ -16,6 +16,9 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
 
   // Calculate animation times based on simulation speed
   const animationTime = Math.max(0.5, 2.5 / (simulationSpeed || 1));
+  
+  // Determine if we should use slow motion animations for very low speeds
+  const useSlowMotion = simulationSpeed <= 0.25;
 
   // Don't render if not simulating or queue is empty
   if (!isSimulating || queue.length === 0) {
@@ -23,7 +26,7 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
   }
 
   return (
-    <div className="absolute left-1/2 top-1/4 transform -translate-x-1/2 z-20">
+    <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 z-20">
       <div className="relative">
         {/* Queue Label */}
         <div className="absolute -top-8 left-0 right-0 text-center font-semibold text-sm text-white bg-indigo-700 px-2 py-1 rounded-md shadow-lg">
@@ -53,7 +56,7 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
         {queue.map((customer, index) => (
           <div
             key={customer.id}
-            className="customer-icon absolute customer-waiting"
+            className={`customer-icon absolute customer-waiting ${simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
             style={{ 
               boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
               transform: 'scale(1)',

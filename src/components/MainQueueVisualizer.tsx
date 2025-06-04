@@ -20,7 +20,7 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
   }
 
   return (
-    <div className="absolute left-1/2 top-1/4 transform -translate-x-1/2 z-20">
+    <div className="absolute left-1/2 bottom-8 transform -translate-x-1/2 z-20">
       <div className="relative">
         {/* Queue Label */}
         <div className="absolute -top-8 left-0 right-0 text-center font-semibold text-sm text-white bg-indigo-700 px-2 py-1 rounded-md shadow-lg">
@@ -50,15 +50,16 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
         {queue.map((customer, index) => (
           <div
             key={customer.id}
-            className={`customer-icon absolute w-4 h-4 rounded-full ${
+            className={`customer-icon absolute w-4 h-4 rounded-full customer-waiting ${
               customer.prefersSelfCheckout ? 'bg-green-500' : 'bg-blue-500'
-            }`}
+            } ${simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
             style={{ 
               boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
               transform: 'scale(1)',
               left: queuePositions.positions[index]?.x || 0,
               top: queuePositions.positions[index]?.y || 0,
-              transition: `all ${Math.max(0.3, 1.0 / simulationSpeed)}s ease`
+              transition: `all ${Math.max(0.5, 1.5 / simulationSpeed)}s ease`,
+              animationDuration: `${Math.max(3, 3 / Math.min(simulationSpeed, 1))}s`
             }}
           >
             {/* Item count indicator */}

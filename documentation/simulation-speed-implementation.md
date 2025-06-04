@@ -84,6 +84,34 @@ const animationTime = Math.max(0.5, 2.5 / simulationSpeed);
 
 This formula ensures that animations are faster at higher simulation speeds and slower at lower simulation speeds, but never too fast or too slow to be visually comprehensible.
 
+### Enhanced Animation at Very Slow Speeds
+
+For ultra-slow speeds (0.1x and 0.25x), special animation techniques are applied:
+
+1. **Special Animation Keyframes**: A more detailed animation is used with more keyframes and enhanced visual effects:
+
+```css
+@keyframes slowQueueFlow {
+  0% { transform: translateY(0) scale(1); box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+  25% { transform: translateY(-2px) scale(1.03); box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+  50% { transform: translateY(-4px) scale(1.06); box-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
+  75% { transform: translateY(-2px) scale(1.03); box-shadow: 0 0 8px rgba(255, 255, 255, 0.6); }
+  100% { transform: translateY(0) scale(1); box-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+}
+```
+
+2. **Dynamic Animation Duration**: Animation durations are calculated dynamically based on the simulation speed:
+
+```typescript
+animationDuration: `${Math.max(3, 3 / Math.min(simulationSpeed, 1))}s`
+```
+
+3. **Conditional Animation Class**: Special animation classes are applied specifically for slow speeds:
+
+```tsx
+className={`customer-icon customer-waiting ${simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
+```
+
 ## Performance Considerations
 
 - At very high speeds (e.g., 10x), the simulation may become CPU-intensive as multiple steps are processed per frame.
