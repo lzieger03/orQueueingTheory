@@ -177,13 +177,15 @@
     background: var(--gradient-primary);
     border-radius: 50%;
     border: 2px solid white;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 4px rgba(255, 255, 255, 0.5);
     transition: all 0.3s ease;
+    position: relative;
+    z-index: 5;
   }
 
   .customer-icon:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+    transform: scale(1.15);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 0 8px rgba(255, 255, 255, 0.7);
   }
 
   /* Enhanced Layout Editor Styles */
@@ -322,9 +324,9 @@
   }
 
   @keyframes queueFlow {
-    0% { transform: translateY(0); }
-    50% { transform: translateY(-2px); }
-    100% { transform: translateY(0); }
+    0% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-3px) scale(1.05); }
+    100% { transform: translateY(0) scale(1); }
   }
 
   /* Performance indicator animations */
@@ -338,11 +340,36 @@
 
   /* Customer animation classes */
   .customer-entering {
-    animation: customerMove 0.8s ease-out;
+    animation: customerEntering 0.8s ease-out;
+    will-change: transform, opacity;
   }
 
   .customer-waiting {
     animation: queueFlow 3s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .customer-being-served {
+    animation: servingPulse 2s ease-in-out infinite;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: #fbbf24;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+    will-change: transform, opacity;
+  }
+
+  @keyframes servingPulse {
+    0% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+    25% { transform: scale(1.1) rotate(-5deg); opacity: 0.95; }
+    50% { transform: scale(1.2) rotate(0deg); opacity: 1; }
+    75% { transform: scale(1.1) rotate(5deg); opacity: 0.95; }
+    100% { transform: scale(1) rotate(0deg); opacity: 0.9; }
+  }
+
+  @keyframes customerEntering {
+    0% { transform: translateY(-30px) scale(0.8); opacity: 0; }
+    60% { transform: translateY(5px) scale(1.1); opacity: 1; }
+    80% { transform: translateY(-3px) scale(0.95); opacity: 1; }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
   }
 
   /* Station status animations */
@@ -439,6 +466,25 @@
 
   .animate-slide-in {
     animation: slide-in 0.3s ease-out;
+  }
+
+  /* Speed Button Animation */
+  @keyframes speed-change-flash {
+    0%, 100% { background-color: rgba(129, 140, 248, 0.2); }
+    50% { background-color: rgba(129, 140, 248, 0.5); }
+  }
+
+  .speed-changed {
+    animation: speed-change-flash 0.5s ease;
+  }
+  
+  @keyframes speed-button-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
+    50% { box-shadow: 0 0 0 6px rgba(79, 70, 229, 0.2); }
+  }
+  
+  .speed-button-attention {
+    animation: speed-button-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
   /* Main Queue Styles */
@@ -611,19 +657,11 @@ input:focus {
   animation: shimmer 2s infinite;
 }
 
-/* Notification Animations */
-@keyframes slide-in {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-in {
-  animation: slide-in 0.3s ease-out;
-}
+/* Animation speed utility classes for various simulation speeds */
+.speed-0-25x { animation-duration: 4s !important; transition-duration: 4s !important; }
+.speed-0-5x { animation-duration: 2s !important; transition-duration: 2s !important; }
+.speed-1x { animation-duration: 1s !important; transition-duration: 1s !important; }
+.speed-2x { animation-duration: 0.5s !important; transition-duration: 0.5s !important; }
+.speed-5x { animation-duration: 0.2s !important; transition-duration: 0.2s !important; }
+.speed-10x { animation-duration: 0.1s !important; transition-duration: 0.1s !important; }
 }

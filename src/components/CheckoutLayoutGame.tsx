@@ -8,6 +8,7 @@ import { TutorialOverlay } from './TutorialOverlay';
 import { GameStatsDisplay } from './GameStatsDisplay';
 import { RealDataInfo } from './RealDataInfo';
 import { NotificationSystem, useNotifications } from './NotificationSystem';
+import { SimulationSpeedButton } from './SimulationSpeedButton';
 import { useGameState } from '../hooks/useGameState';
 import { storeLayouts } from '../data/samples';
 import type { CheckoutStation, CheckoutType } from '../types';
@@ -39,6 +40,7 @@ export default function CheckoutLayoutGame() {
     resetGame,
     updateStations,
     updateParams,
+    updateSimulationSpeed,
     enableAI,
     canStartSimulation,
     canPause,
@@ -343,6 +345,29 @@ export default function CheckoutLayoutGame() {
                     <RotateCcw className="w-5 h-5" />
                   </button>
                 </div>
+                
+                {/* Simulation Speed Control - Always enabled, even in editing mode */}
+                <div className="flex items-center justify-between w-full mt-3">
+                  {gameState === 'editing' && (
+                    <div className="text-sm text-yellow-300 flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                      </svg>
+                      Set simulation speed before starting
+                    </div>
+                  )}
+                  <div className={`bg-indigo-900/30 p-0.5 rounded-xl ${
+                    gameState === 'simulating' ? 'speed-button-attention' : ''
+                  }`}>
+                    <SimulationSpeedButton
+                      speed={context.simulationSpeed}
+                      onSpeedChange={updateSimulationSpeed}
+                      disabled={false} // Never disable the speed control
+                    />
+                  </div>
+                </div>
               </div>
               
               {/* Tools and Layouts Row */}
@@ -413,6 +438,7 @@ export default function CheckoutLayoutGame() {
                 onStationsUpdate={updateStations}
                 disabled={gameState !== 'editing'}
                 isSimulating={gameState === 'simulating' || gameState === 'paused'}
+                simulationSpeed={context.simulationSpeed}
               />
             </div>
           </div>

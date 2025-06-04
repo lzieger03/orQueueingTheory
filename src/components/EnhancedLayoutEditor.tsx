@@ -4,7 +4,7 @@ import { useDrag, useDrop } from 'react-dnd';
 import type { CheckoutStation, Customer, Position, CheckoutType } from '../types';
 import { GameUtils } from '../utils/gameUtils';
 import { Trash2, Settings } from 'lucide-react';
-import MainQueueVisualizer from './MainQueueVisualizer';
+import MainQueueVisualizer from './EnhancedMainQueueVisualizer';
 
 interface LayoutEditorProps {
   stations: CheckoutStation[];
@@ -46,6 +46,8 @@ function DraggableStation({
   // Connect the drag ref
   drag(dragRef);
 
+  // Calculate animation time based on simulation speed
+  const animationTime = Math.max(0.5, 2.5 / (simulationSpeed || 1));
   const queuePositions = GameUtils.calculateQueuePositions(station);
 
   const getStationColor = () => {
@@ -137,18 +139,18 @@ function DraggableStation({
       {isSimulating && queuePositions.map((pos, index) => (
         <div
           key={index}
-          className="customer-icon absolute animate-bounceSubtle"
+          className="customer-icon absolute customer-waiting"
           style={{ 
             left: pos.x - station.position.x, 
             top: pos.y - station.position.y,
-            animationDuration: `${Math.max(0.5, 2.5 / simulationSpeed)}s` 
+            animationDuration: `${animationTime * 3}s`
           }}
         />
       ))}
 
       {/* Serving Customer Indicator */}
       {isSimulating && station.servingCustomer && (
-        <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 rounded-xl animate-pulseSlow backdrop-blur-sm" style={{ animationDuration: `${Math.max(1, 3 / simulationSpeed)}s` }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/20 to-orange-400/20 rounded-xl animate-pulseSlow backdrop-blur-sm" />
       )}
     </div>
   );
@@ -396,7 +398,7 @@ export function LayoutEditor({
               className={`customer-icon absolute ${
                 station.servingCustomer?.id === customer.id 
                   ? 'customer-being-served' 
-                  : 'customer-waiting animate-queueFlow'
+                  : 'customer-waiting'
               }`}
               style={{ 
                 left: position.x, 
@@ -470,3 +472,6 @@ export function LayoutEditor({
     </div>
   );
 }
+
+export default LayoutEditor;
+export { LayoutEditor as EnhancedLayoutEditor };

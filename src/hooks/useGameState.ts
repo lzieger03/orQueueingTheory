@@ -25,6 +25,7 @@ const gameStateMachine = createMachine({
     stations: [],
     customers: [],
     mainQueue: [], // Initialize empty main queue
+    simulationSpeed: parseFloat(localStorage.getItem('simulationSpeed') || '1'), // Use saved speed or default to 1.0x
     // Initialize metrics from first simulation history entry
     metrics: simulationHistory.length > 0 ? {
       averageWaitTime: simulationHistory[0].averageWaitTime,
@@ -90,7 +91,8 @@ const gameStateMachine = createMachine({
   },
   // Handle loading realistic simulation history
   on: {
-    SET_SIMULATION_HISTORY: { actions: 'setSimulationHistory' }
+    SET_SIMULATION_HISTORY: { actions: 'setSimulationHistory' },
+    SET_SIMULATION_SPEED: { actions: 'setSimulationSpeed' } // Add action to set simulation speed
   }
 }, {
   actions: {
@@ -104,6 +106,9 @@ const gameStateMachine = createMachine({
       simulationParams: (_, event: any) => event.params
     }),
     setSimulationHistory: assign({ simulationHistory: (_, event: any) => event.simulationHistory }),
+    setSimulationSpeed: assign({
+      simulationSpeed: (_, event: any) => event.speed
+    }),
     updateSimulation: assign({
       customers: (_, event: any) => event.customers,
       metrics: (_, event: any) => event.metrics,
@@ -120,6 +125,7 @@ export function useGameState() {
   const [aiAgent, setAiAgent] = useState<QLearningAgent | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [animationFrame, setAnimationFrame] = useState<number | null>(null);
+  const [lastStepTime, setLastStepTime] = useState<number>(0);
 
   // Initialize AI agent
   useEffect(() => {
@@ -157,6 +163,7 @@ export function useGameState() {
     );
     setSimulationEngine(engine);
     setIsRunning(true);
+    setLastStepTime(0);
     send({ type: 'START_SIMULATION' });
   }, [state.context.stations, state.context.simulationParams, send]);
 
@@ -173,6 +180,7 @@ export function useGameState() {
   // Resume simulation
   const resumeSimulation = useCallback(() => {
     setIsRunning(true);
+    setLastStepTime(0);
     send({ type: 'RESUME' });
   }, [send]);
 
@@ -208,6 +216,17 @@ export function useGameState() {
     const updatedParams = { ...state.context.simulationParams, ...params };
     send({ type: 'UPDATE_PARAMS', params: updatedParams });
   }, [state.context.simulationParams, send]);
+
+  // Update simulation speed
+  const updateSimulationSpeed = useCallback((speed: number) => {
+    // Log to help debug speed change issues
+    console.log('Setting simulation speed to:', speed);
+    
+    // Dispatch the speed change action
+    send({ type: 'SET_SIMULATION_SPEED', speed });
+    
+    // We could also add a notification here if needed in the future
+  }, [send]);
 
   // Enable AI
   const enableAI = useCallback(() => {
@@ -247,28 +266,47 @@ export function useGameState() {
         }
         lastUpdate = timestamp;
         
-         const hasMore = simulationEngine.step();
-         
-         // Get fresh metrics after each simulation step
-         const currentMetrics = simulationEngine.getCurrentMetrics();
-         
-         // Update state with current simulation data
-         send({
-           type: 'UPDATE_SIMULATION',
-           customers: simulationEngine.getCustomers(),
-           metrics: currentMetrics,
-           currentTime: simulationEngine.getCurrentTime(),
-           stations: simulationEngine.getStations(),
-           mainQueue: simulationEngine.getMainQueue() // Add main queue to state update
-         });
+        // Apply simulation speed - determine if we should step the simulation in this frame
+        const currentTime = performance.now();
+        const timeSinceLastStep = currentTime - lastStepTime;
+        const stepInterval = Math.max(50, 200 / state.context.simulationSpeed); // Adjust step interval based on speed
+        
+        let shouldStep = false;
+        if (lastStepTime === 0 || timeSinceLastStep >= stepInterval) {
+          shouldStep = true;
+          setLastStepTime(currentTime);
+        }
+        
+        let hasMore = true;
+        if (shouldStep) {
+          // Perform more steps for higher simulation speeds
+          const stepsToPerform = Math.max(1, Math.floor(state.context.simulationSpeed / 2));
+          
+          for (let i = 0; i < stepsToPerform && hasMore; i++) {
+            hasMore = simulationEngine.step();
+          }
+          
+          // Get fresh metrics after simulation steps
+          const currentMetrics = simulationEngine.getCurrentMetrics();
+           
+          // Update state with current simulation data
+          send({
+            type: 'UPDATE_SIMULATION',
+            customers: simulationEngine.getCustomers(),
+            metrics: currentMetrics,
+            currentTime: simulationEngine.getCurrentTime(),
+            stations: simulationEngine.getStations(),
+            mainQueue: simulationEngine.getMainQueue()
+          });
+        }
 
-         if (hasMore) {
-           const frame = requestAnimationFrame(animate);
-           setAnimationFrame(frame);
-         } else {
-           setIsRunning(false);
-           send({ type: 'COMPLETE' });
-         }
+        if (hasMore) {
+          const frame = requestAnimationFrame(animate);
+          setAnimationFrame(frame);
+        } else {
+          setIsRunning(false);
+          send({ type: 'COMPLETE' });
+        }
        };
 
        const frame = requestAnimationFrame(animate);
@@ -280,7 +318,7 @@ export function useGameState() {
          }
        };
      }
-   }, [isRunning, simulationEngine, state, send]);
+   }, [isRunning, simulationEngine, state, send, lastStepTime, state.context.simulationSpeed]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -305,6 +343,7 @@ export function useGameState() {
     resetGame,
     updateStations,
     updateParams,
+    updateSimulationSpeed,
     enableAI,
     generateAIRecommendations,
     

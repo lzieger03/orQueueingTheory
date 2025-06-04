@@ -94,6 +94,7 @@ export interface GameStore {
   isAIEnabled: boolean;
   aiRecommendations: AIRecommendation[];
   simulationHistory: SimulationData[];
+  simulationSpeed: number; // Simulation speed multiplier (1.0 = normal speed)
 }
 
 // AI/ML types

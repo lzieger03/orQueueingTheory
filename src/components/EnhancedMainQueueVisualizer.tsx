@@ -5,7 +5,7 @@ import type { Customer } from '../types';
 interface MainQueueVisualizerProps {
   queue: Customer[];
   isSimulating: boolean;
-  simulationSpeed?: number; // Simulation speed for animations
+  simulationSpeed?: number; // Add simulation speed
 }
 
 export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }: MainQueueVisualizerProps) {
@@ -13,6 +13,9 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
   const queuePositions = useMemo(() => {
     return calculateMainQueuePositions(queue);
   }, [queue]);
+
+  // Calculate animation times based on simulation speed
+  const animationTime = Math.max(0.5, 2.5 / (simulationSpeed || 1));
 
   // Don't render if not simulating or queue is empty
   if (!isSimulating || queue.length === 0) {
@@ -50,15 +53,14 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
         {queue.map((customer, index) => (
           <div
             key={customer.id}
-            className={`customer-icon absolute w-4 h-4 rounded-full ${
-              customer.prefersSelfCheckout ? 'bg-green-500' : 'bg-blue-500'
-            }`}
+            className="customer-icon absolute customer-waiting"
             style={{ 
               boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
               transform: 'scale(1)',
               left: queuePositions.positions[index]?.x || 0,
               top: queuePositions.positions[index]?.y || 0,
-              transition: `all ${Math.max(0.3, 1.0 / simulationSpeed)}s ease`
+              transition: `all ${animationTime}s ease`,
+              animationDuration: `${animationTime * 3}s`
             }}
           >
             {/* Item count indicator */}
