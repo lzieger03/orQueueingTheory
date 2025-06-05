@@ -447,9 +447,6 @@ export class SimulationEngine {
   }
 
   // Break handling methods have been removed
-      this.processMainQueue();
-    }
-  }
 
   /**
    * Process next event in the simulation

@@ -272,8 +272,7 @@ export function LayoutEditor({
       isActive: true,
       servingCustomer: null,
       queue: [],
-      serviceTime: type === 'kiosk' ? 90 : 75, // Realistic clothing store service times
-      onBreak: false
+      serviceTime: type === 'kiosk' ? 90 : 75 // Realistic clothing store service times
     };
 
     // Find a valid position

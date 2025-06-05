@@ -10,8 +10,7 @@ export const createTestStation = (): CheckoutStation => {
     isActive: true,
     servingCustomer: null,
     queue: [],
-    serviceTime: 75,
-    onBreak: false
+    serviceTime: 75
   };
 };
 

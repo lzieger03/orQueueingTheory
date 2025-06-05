@@ -163,7 +163,7 @@ export class OperationsResearchMath {
     previousUtilization: number = 0,
     smoothingFactor: number = 0.8
   ): number {
-    const activeStations = stations.filter(s => s.isActive && !s.onBreak);
+    const activeStations = stations.filter(s => s.isActive);
     // const busyStations = activeStations.filter(s => s.servingCustomer !== null);
     
     if (activeStations.length === 0) return 0;

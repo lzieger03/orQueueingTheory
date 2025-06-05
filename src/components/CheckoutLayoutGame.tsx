@@ -137,8 +137,7 @@ export default function CheckoutLayoutGame() {
           isActive: true,
           servingCustomer: null,
           queue: [],
-          serviceTime: stationType === 'kiosk' ? 90 : 75,
-          onBreak: false
+          serviceTime: stationType === 'kiosk' ? 90 : 75
         };
         currentStations.push(newStation);
         updateStations(currentStations);

@@ -25,8 +25,7 @@ const testStations: CheckoutStation[] = [
     queue: [],
     servingCustomer: null,
     maxQueueLength: 10,
-    serviceTime: 75, // Add serviceTime in seconds
-    onBreak: false
+    serviceTime: 75 // Add serviceTime in seconds
   },
   {
     id: 'kiosk_1',
@@ -37,8 +36,7 @@ const testStations: CheckoutStation[] = [
     queue: [],
     servingCustomer: null,
     maxQueueLength: 5, // Explicitly set max queue length for kiosk
-    serviceTime: 90, // Add serviceTime in seconds
-    onBreak: false
+    serviceTime: 90 // Add serviceTime in seconds
   }
 ];
 
