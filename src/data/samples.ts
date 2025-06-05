@@ -63,14 +63,12 @@ export const sampleHistoricalData = [
 ];
 
 export const defaultSimulationParams: SimulationParams = {
-  arrivalRate: 0.44, // customers per minute (based on real weekday data: 22 customers in 8 hours = 0.0458/min)
+  arrivalRate: 26, // customers per hour (based on real weekday data: ~22-26 customers per day, extrapolated for busy periods)
   serviceTimeRegular: realStoreData.weekday.avgServiceTime, // 82 seconds from real data
   serviceTimeKiosk: Math.round(realStoreData.weekday.avgServiceTime * 1.2), // Kiosks 20% slower
   dayType: 'weekday',
   simulationDuration: 30, // minutes (30-minute simulation window)
-  maxCustomers: 1000,
-  breakInterval: 90, // 90 minutes between breaks on weekdays (from real data)
-  breakDuration: 15 // 15 minute breaks
+  maxCustomers: 1000
 };
 
 // Real clothing store data based on CSV analysis

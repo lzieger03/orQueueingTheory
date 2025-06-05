@@ -64,7 +64,6 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
       serviceTimeRegular: storeData.avgServiceTime,
       serviceTimeKiosk: Math.round(storeData.avgServiceTime * 1.2),
       arrivalRate: dayType === 'weekday' ? 26 : 46, // Based on real customer counts converted to customers/hour
-      breakInterval: dayType === 'weekday' ? 90 : 0, // No breaks on busy weekends
     });
   };
 

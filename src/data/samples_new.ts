@@ -66,9 +66,7 @@ export const defaultSimulationParams: SimulationParams = {
   serviceTimeKiosk: Math.round(realStoreData.weekday.avgServiceTime * 1.2), // Kiosks 20% slower
   dayType: 'weekday',
   simulationDuration: 30, // minutes (30-minute simulation window)
-  maxCustomers: 1000,
-  breakInterval: 90, // 90 minutes between breaks on weekdays (from real data)
-  breakDuration: 15 // 15 minute breaks
+  maxCustomers: 1000
 };
 
 // Real clothing store data based on CSV analysis

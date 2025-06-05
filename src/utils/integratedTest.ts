@@ -14,8 +14,7 @@ const testStations: CheckoutStation[] = [
     queue: [],
     servingCustomer: null,
     maxQueueLength: 10,
-    serviceTime: 75, // Add serviceTime in seconds
-    onBreak: false
+    serviceTime: 75 // Add serviceTime in seconds
   },
   {
     id: 'regular_2',
@@ -48,9 +47,7 @@ const testParams: SimulationParams = {
   arrivalRate: 0.5, // 0.5 customers per minute (30 customers per hour)
   simulationDuration: 60, // 60 minutes
   dayType: 'weekday',
-  maxCustomers: 200, // Allow more customers to test queue limits
-  breakInterval: 0, // No breaks for testing
-  breakDuration: 0
+  maxCustomers: 200 // Allow more customers to test queue limits
 };
 
 // Run the simulation and collect statistics

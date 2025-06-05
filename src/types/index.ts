@@ -23,7 +23,6 @@ export interface CheckoutStation {
   queue: Customer[];
   serviceTime: number; // Mean service time in seconds
   maxQueueLength?: number; // Maximum queue length for this station
-  onBreak: boolean; // Whether this station is currently on break
 }
 
 // Customer representation
@@ -42,14 +41,12 @@ export interface Customer {
 
 // Simulation parameters for clothing stores
 export interface SimulationParams {
-  arrivalRate: number; // Customers per minute
+  arrivalRate: number; // Customers per hour
   serviceTimeRegular?: number; // Mean service time for regular checkout
   serviceTimeKiosk?: number; // Mean service time for kiosk
   dayType: 'weekday' | 'weekend';
   simulationDuration: number; // In minutes
   maxCustomers: number;
-  breakInterval?: number; // Minutes between breaks (0 = no breaks)
-  breakDuration?: number; // Break length in minutes
 }
 
 // Performance metrics
@@ -68,7 +65,7 @@ export interface Metrics {
 }
 
 // Simulation events
-export type EventType = 'arrival' | 'serviceStart' | 'serviceEnd' | 'breakStart' | 'breakEnd';
+export type EventType = 'arrival' | 'serviceStart' | 'serviceEnd';
 
 export interface SimulationEvent {
   id: string;

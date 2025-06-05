@@ -65,55 +65,20 @@ export class SimulationEngine {
     this.queueLengthHistory = [];
     this.previousCustomerSatisfaction = undefined;
     
-    // Clear all station queues and reset break state
+    // Clear all station queues
     this.stations.forEach(station => {
       station.queue = [];
       station.servingCustomer = null;
-      station.onBreak = false;
     });
 
     // Schedule first customer arrival
     this.scheduleNextArrival();
     
-    // Schedule breaks for weekdays (weekends have no breaks due to busy periods)
-    if (this.params.dayType === 'weekday' && this.params.breakInterval && this.params.breakInterval > 0) {
-      this.scheduleBreaks();
-    }
-    
     // Initialize metrics for real-time display
     this.updateMetrics();
   }
 
-  private scheduleBreaks(): void {
-    if (!this.params.breakInterval || !this.params.breakDuration) return;
-    
-    const breakInterval = this.params.breakInterval * 60; // Convert to seconds
-    const breakDuration = this.params.breakDuration * 60; // Convert to seconds
-    const simulationDuration = this.params.simulationDuration * 60;
-    
-    // Schedule breaks at regular intervals during weekdays
-    for (let breakTime = breakInterval; breakTime < simulationDuration; breakTime += breakInterval) {
-      // Randomly select a station for break (realistic staffing)
-      const activeStations = this.stations.filter(s => s.isActive);
-      if (activeStations.length > 0) {
-        const stationForBreak = activeStations[Math.floor(Math.random() * activeStations.length)];
-        
-        this.addEvent({
-          id: `event_${this.eventId++}`,
-          type: 'breakStart',
-          time: breakTime,
-          stationId: stationForBreak.id
-        });
-        
-        this.addEvent({
-          id: `event_${this.eventId++}`,
-          type: 'breakEnd',
-          time: breakTime + breakDuration,
-          stationId: stationForBreak.id
-        });
-      }
-    }
-  }
+  // Break scheduling functionality has been removed
 
   private scheduleNextArrival(): void {
     // Check if we've reached the maximum number of customers
@@ -129,9 +94,9 @@ export class SimulationEngine {
       return;
     }
     
-    // Convert arrival rate from customers per minute to customers per second
+    // Convert arrival rate from customers per hour to customers per second
     // for the exponential distribution (simulation time is in seconds)
-    const arrivalRatePerSecond = this.params.arrivalRate / 60;
+    const arrivalRatePerSecond = this.params.arrivalRate / 3600;
     
     // Exponential distribution for arrival times (Poisson process)
     const interArrivalTime = this.exponentialRandom(arrivalRatePerSecond);
@@ -481,29 +446,7 @@ export class SimulationEngine {
     }
   }
 
-  private processBreakStart(event: SimulationEvent): void {
-    const station = this.stations.find(s => s.id === event.stationId);
-    if (!station) return;
-    
-    // Mark station as on break
-    station.onBreak = true;
-    
-    // If station is serving a customer, let them finish
-    // but don't start new customers until break is over
-  }
-
-  private processBreakEnd(event: SimulationEvent): void {
-    const station = this.stations.find(s => s.id === event.stationId);
-    if (!station) return;
-    
-    // Mark station as no longer on break
-    station.onBreak = false;
-    
-    // If station has customers in queue, start serving
-    if (station.queue.length > 0 && !station.servingCustomer) {
-      this.startService(station);
-    } else if (station.type === 'regular') {
-      // If this is a regular station and it's now available, check main queue
+  // Break handling methods have been removed
       this.processMainQueue();
     }
   }
@@ -527,12 +470,6 @@ export class SimulationEngine {
         break;
       case 'serviceEnd':
         this.processServiceEnd(event);
-        break;
-      case 'breakStart':
-        this.processBreakStart(event);
-        break;
-      case 'breakEnd':
-        this.processBreakEnd(event);
         break;
     }
 
@@ -594,7 +531,7 @@ export class SimulationEngine {
     this.metrics.peakQueueLength = Math.max(this.metrics.peakQueueLength, currentQueueLength);
     
     // Calculate realistic server utilization
-    const activeStations = this.stations.filter(s => s.isActive && !s.onBreak);
+    const activeStations = this.stations.filter(s => s.isActive);
     const busyStations = activeStations.filter(s => s.servingCustomer !== null);
     
     // Calculate instantaneous utilization
@@ -649,7 +586,7 @@ export class SimulationEngine {
       this.metrics.throughput = servedCustomers.length / hoursElapsed;
     } else {
       // For very early simulation, estimate based on station capacity
-      const activeStations = this.stations.filter(s => s.isActive && !s.onBreak);
+      const activeStations = this.stations.filter(s => s.isActive);
       // Use default service time if params value is undefined
       const serviceTime = this.params.serviceTimeRegular || 82; // Default to 82 seconds for regular checkout
       const avgServiceTimeHours = serviceTime / 3600; // Convert seconds to hours
