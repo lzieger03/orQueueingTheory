@@ -1,4 +1,5 @@
 import { Clock, TrendingUp, AlertTriangle, CheckCircle, Activity } from 'lucide-react';
+import { OperationsResearchMath } from '../utils/operationsResearchMath';
 
 interface GameStatsDisplayProps {
   metrics: {
@@ -12,12 +13,12 @@ interface GameStatsDisplayProps {
 
 export function GameStatsDisplay({ metrics }: GameStatsDisplayProps) {
   const getPerformanceLevel = () => {
-    const waitTime = metrics.averageWaitTime;
+    const waitTimeMinutes = OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime);
     const utilization = metrics.utilization;
     
-    if (waitTime < 2 && utilization > 0.7 && utilization < 0.9) return 'excellent';
-    if (waitTime < 4 && utilization > 0.6 && utilization < 0.95) return 'good';
-    if (waitTime < 8 && utilization > 0.4) return 'fair';
+    if (waitTimeMinutes < 2 && utilization > 0.7 && utilization < 0.9) return 'excellent';
+    if (waitTimeMinutes < 4 && utilization > 0.6 && utilization < 0.95) return 'good';
+    if (waitTimeMinutes < 8 && utilization > 0.4) return 'fair';
     return 'poor';
   };
 
@@ -65,22 +66,22 @@ export function GameStatsDisplay({ metrics }: GameStatsDisplayProps) {
           <div>
             <div className="text-white/70 text-xs font-medium">Avg Wait Time</div>
             <div className="text-2xl font-bold text-white">
-              {metrics.averageWaitTime.toFixed(1)}m
+              {OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime).toFixed(1)}m
             </div>
           </div>
           <Clock className="w-6 h-6 text-blue-300" />
         </div>
         <div className="mt-2">
           <div className={`w-full h-1.5 rounded-full overflow-hidden ${
-            metrics.averageWaitTime < 2 ? 'bg-emerald-500/30' :
-            metrics.averageWaitTime < 5 ? 'bg-yellow-500/30' : 'bg-red-500/30'
+            OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime) < 2 ? 'bg-emerald-500/30' :
+            OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime) < 5 ? 'bg-yellow-500/30' : 'bg-red-500/30'
           }`}>
             <div 
               className={`h-full transition-all duration-500 ${
-                metrics.averageWaitTime < 2 ? 'bg-emerald-400' :
-                metrics.averageWaitTime < 5 ? 'bg-yellow-400' : 'bg-red-400'
+                OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime) < 2 ? 'bg-emerald-400' :
+                OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime) < 5 ? 'bg-yellow-400' : 'bg-red-400'
               }`}
-              style={{ width: `${Math.min(100, (metrics.averageWaitTime / 10) * 100)}%` }}
+              style={{ width: `${Math.min(100, (OperationsResearchMath.convertSecondsToMinutes(metrics.averageWaitTime) / 10) * 100)}%` }}
             />
           </div>
         </div>

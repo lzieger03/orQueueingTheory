@@ -96,6 +96,25 @@ export class OperationsResearchMath {
     return 1 / p0Sum;
   }
 
+  /**
+   * Get metrics for unstable system (utilization >= 1)
+   */
+  private static getUnstableSystemMetrics(utilization: number): Metrics {
+    return {
+      averageWaitTime: Infinity,
+      averageQueueLength: Infinity,
+      serverUtilization: utilization,
+      utilization: utilization,
+      throughput: 0,
+      totalCustomersServed: 0,
+      totalCustomersAbandoned: 0,
+      peakQueueLength: 0,
+      customersInSystem: Infinity,
+      customerSatisfaction: 0,
+      score: 0
+    };
+  }
+
   // ==================== REAL-TIME SIMULATION METRICS ====================
 
   /**
@@ -220,6 +239,153 @@ export class OperationsResearchMath {
     }
     
     return totalRealisticWaitTime / completedCustomers.length;
+  }
+
+  // ==================== CENTRALIZED WAIT TIME CALCULATIONS ====================
+
+  /**
+   * Calculate wait time in queue (Wq) using Little's Law
+   * Returns wait time in SECONDS for internal consistency
+   */
+  static calculateWaitTimeInQueue(
+    averageQueueLength: number, 
+    arrivalRatePerSecond: number
+  ): number {
+    if (arrivalRatePerSecond <= 0) return 0;
+    return averageQueueLength / arrivalRatePerSecond;
+  }
+
+  /**
+   * Calculate wait time in system (Ws) using Little's Law  
+   * Returns wait time in SECONDS for internal consistency
+   */
+  static calculateWaitTimeInSystem(
+    averageCustomersInSystem: number,
+    arrivalRatePerSecond: number
+  ): number {
+    if (arrivalRatePerSecond <= 0) return 0;
+    return averageCustomersInSystem / arrivalRatePerSecond;
+  }
+
+  /**
+   * Calculate wait time for dashboard display using simulation metrics
+   * Uses Little's Law with proper unit conversion for UI display
+   * Returns wait time in MINUTES for display
+   */
+  static calculateDashboardWaitTime(
+    currentMetrics: Metrics,
+    totalActiveStations: number
+  ): number {
+    const lambda = currentMetrics.throughput || 0; // customers per hour
+    const lambdaPerSecond = lambda / 3600; // convert to customers per second
+    
+    // Calculate Lq (queue length) using simulation data
+    const L = currentMetrics.customersInSystem || 0;
+    const Lq = Math.max(0, L - (currentMetrics.utilization * totalActiveStations));
+    
+    // Calculate wait time in queue using Little's Law
+    const wqSeconds = this.calculateWaitTimeInQueue(Lq, lambdaPerSecond);
+    
+    // Convert to minutes for display
+    return wqSeconds / 60;
+  }
+
+  /**
+   * Calculate theoretical wait time using M/M/c queueing theory
+   * Returns wait time in SECONDS for internal consistency
+   */
+  static calculateTheoreticalWaitTime(
+    arrivalRatePerSecond: number,
+    serviceRatePerSecond: number,
+    serverCount: number
+  ): number {
+    // Use existing M/M/c calculation
+    const metrics = this.calculateMMcMetrics(
+      arrivalRatePerSecond,
+      serviceRatePerSecond, 
+      serverCount
+    );
+    
+    // Return wait time in system (Ws) in seconds
+    return metrics.averageWaitTime;
+  }
+
+  /**
+   * Calculate wait time from actual simulation customer data
+   * Returns wait time in SECONDS with realistic caps
+   */
+  static calculateSimulationWaitTime(
+    completedCustomers: Customer[],
+    maxRealisticWaitTimeSeconds: number = 1800 // 30 minutes
+  ): number {
+    if (completedCustomers.length === 0) return 0;
+    
+    let totalWaitTime = 0;
+    for (const customer of completedCustomers) {
+      // Cap individual wait times to realistic maximum
+      const cappedWaitTime = Math.min(customer.waitTime || 0, maxRealisticWaitTimeSeconds);
+      totalWaitTime += cappedWaitTime;
+    }
+    
+    return totalWaitTime / completedCustomers.length;
+  }
+
+  /**
+   * Convert wait time from seconds to minutes for display
+   */
+  static convertSecondsToMinutes(waitTimeSeconds: number): number {
+    return waitTimeSeconds / 60;
+  }
+
+  /**
+   * Convert wait time from minutes to seconds for calculations
+   */
+  static convertMinutesToSeconds(waitTimeMinutes: number): number {
+    return waitTimeMinutes * 60;
+  }
+
+  /**
+   * Format wait time for display with appropriate units
+   */
+  static formatWaitTimeForDisplay(waitTimeSeconds: number): string {
+    const minutes = this.convertSecondsToMinutes(waitTimeSeconds);
+    
+    if (minutes < 1) {
+      return `${Math.round(waitTimeSeconds)}s`;
+    } else if (minutes < 60) {
+      return `${minutes.toFixed(1)}m`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = Math.round(minutes % 60);
+      return `${hours}h ${remainingMinutes}m`;
+    }
+  }
+
+  /**
+   * Calculate approximate wait time for historical/sample data  
+   * Returns wait time in SECONDS for internal consistency
+   */
+  static calculateHistoricalWaitTime(
+    arrivalRatePerHour: number,
+    serviceTimeSeconds: number,
+    serverCount: number,
+    utilizationFactor: number = 1.0
+  ): number {
+    // Convert arrival rate to per second
+    const arrivalRatePerSecond = arrivalRatePerHour / 3600;
+    
+    // Convert service time to service rate per second
+    const serviceRatePerSecond = 1 / serviceTimeSeconds;
+    
+    // Calculate theoretical wait time using M/M/c
+    const theoreticalWaitTime = this.calculateTheoreticalWaitTime(
+      arrivalRatePerSecond,
+      serviceRatePerSecond,
+      serverCount
+    );
+    
+    // Apply utilization factor for historical approximation
+    return theoreticalWaitTime * utilizationFactor;
   }
 
   // ==================== CUSTOMER SATISFACTION MODELS ====================
@@ -434,51 +600,6 @@ export class OperationsResearchMath {
       queueLengthDifference: queueLengthDiff,
       utilizationDifference: utilizationDiff,
       accuracy: Math.max(0, accuracy)
-    };
-  }
-
-  // ==================== HELPER METHODS ====================
-
-  /**
-   * Generate arrival rate patterns for different times of day
-   */
-  static generateArrivalPattern(
-    dayType: 'weekday' | 'weekend',
-    baseRate: number
-  ): number[] {
-    const hourlyMultipliers = dayType === 'weekday' 
-      ? [
-          0.1, 0.1, 0.1, 0.1, 0.1, 0.2, // 0-5 AM
-          0.3, 0.5, 0.7, 0.8, 0.9, 1.2, // 6-11 AM
-          1.5, 1.3, 1.1, 1.0, 1.2, 1.8, // 12-5 PM
-          2.0, 1.6, 1.2, 0.8, 0.5, 0.3  // 6-11 PM
-        ]
-      : [
-          0.1, 0.1, 0.1, 0.1, 0.1, 0.1, // 0-5 AM
-          0.2, 0.3, 0.5, 0.8, 1.2, 1.5, // 6-11 AM
-          1.8, 2.0, 1.9, 1.7, 1.5, 1.6, // 12-5 PM
-          1.8, 1.6, 1.3, 1.0, 0.7, 0.4  // 6-11 PM
-        ];
-
-    return hourlyMultipliers.map(multiplier => baseRate * multiplier);
-  }
-
-  /**
-   * Get metrics for unstable system (utilization >= 1)
-   */
-  private static getUnstableSystemMetrics(utilization: number): Metrics {
-    return {
-      averageWaitTime: Infinity,
-      averageQueueLength: Infinity,
-      serverUtilization: utilization,
-      utilization: utilization,
-      throughput: 0,
-      totalCustomersServed: 0,
-      totalCustomersAbandoned: 0,
-      peakQueueLength: 0,
-      customersInSystem: 0,
-      customerSatisfaction: 0,
-      score: 0
     };
   }
 }

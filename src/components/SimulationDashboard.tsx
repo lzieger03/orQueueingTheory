@@ -1,3 +1,4 @@
+// filepath: /Users/lars/Downloads/improved_checkoutGame/checkoutGame/checkoutGame/src/components/SimulationDashboard.tsx
 // Improved SimulationDashboard component with realistic Operations Research metrics
 import React from 'react';
 import {
@@ -14,6 +15,7 @@ import {
 } from 'recharts';
 import { Activity, Clock, Users, TrendingUp, DollarSign, BarChart2 } from 'lucide-react';
 import type { SimulationData, CheckoutStation } from '../types';
+import { OperationsResearchMath } from '../utils/operationsResearchMath';
 
 interface CurrentMetrics {
   averageWaitTime: number;
@@ -37,31 +39,55 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
   stations,
   currentMetrics,
 }) => {
-  // Prepare data for charts
-  const timeSeriesData = simulationData.map((data) => ({
-    time: data.timestamp / 60, // timestamp in minutes
-    waitTime: data.averageWaitTime,
-    throughput: data.throughput,
-    utilization: data.utilization * 100,
-    queueLength: data.queueLength,
-  }));
-
-  // Station utilization data
-  const stationsArray = Array.isArray(stations) ? stations : [];
-  
-  // Calculate individual station utilization based on queue length and serving status
-  const stationData = stationsArray.map((station, index) => {
-    // Calculate individual station utilization based on queue length and serving status
-    const stationUtilization = station.servingCustomer ? 100 : 0;
+  // Add error handling wrapper to prevent crashes
+  try {
+    // Add empty data check with fallback
+    const hasData = Array.isArray(simulationData) && simulationData.length > 0;
     
-    return {
-      name: `${station.type === 'regular' ? 'Regular' : 'Self-Service'} ${index + 1}`,
-      utilization: stationUtilization,
-      customers: station.queue.length + (station.servingCustomer ? 1 : 0),
-    };
-  });
+    // Prepare data for charts with validation and limiting data points for better performance
+    const timeSeriesData = hasData 
+      ? simulationData
+          .slice(-30) // Limit to last 30 data points for better chart performance
+          .map((data) => ({
+            time: (data.timestamp || 0) / 60, // timestamp in minutes with fallback
+            waitTime: OperationsResearchMath.convertSecondsToMinutes(data.averageWaitTime || 0), // Convert seconds to minutes with fallback
+            throughput: data.throughput || 0,
+            utilization: (data.utilization || 0) * 100,
+            queueLength: data.queueLength || 0,
+          }))
+      : Array.from({ length: 5 }, (_, i) => ({ 
+          time: i, 
+          waitTime: 0, 
+          throughput: 0, 
+          utilization: 0, 
+          queueLength: 0 
+        })); // Provide multiple fallback data points
 
-  // Calculate Operations Research metrics
+    // Station utilization data
+    const stationsArray = Array.isArray(stations) ? stations : [];
+    
+    // Calculate individual station utilization based on queue length and serving status
+    const stationData = stationsArray.map((station, index) => {
+      try {
+        // Calculate individual station utilization based on queue length and serving status
+        const stationUtilization = station.servingCustomer ? 100 : 0;
+        
+        return {
+          name: `${station.type === 'regular' ? 'Regular' : 'Self-Service'} ${index + 1}`,
+          utilization: stationUtilization,
+          customers: (station.queue?.length || 0) + (station.servingCustomer ? 1 : 0),
+        };
+      } catch (err) {
+        console.error('Error processing station data:', err);
+        return {
+          name: `Station ${index + 1}`,
+          utilization: 0,
+          customers: 0
+        };
+      }
+    });
+
+  // Calculate Operations Research metrics using centralized methods
   const regularStations = stationsArray.filter(s => s.type === 'regular' && s.isActive).length;
   const kioskStations = stationsArray.filter(s => s.type === 'kiosk' && s.isActive).length;
   const totalStations = regularStations + kioskStations;
@@ -71,11 +97,14 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
   const mu = totalStations > 0 ? (lambda / (currentMetrics.utilization || 0.01)) / totalStations : 0; // service rate per server
   const rho = totalStations > 0 ? lambda / (totalStations * mu) : 0; // traffic intensity
   
+  // Use centralized wait time calculation - convert engine seconds to minutes for display
+  const avgWaitTimeMinutes = OperationsResearchMath.convertSecondsToMinutes(
+    currentMetrics.averageWaitTime || 0
+  );
+  
   // Little's Law calculations
   const L = currentMetrics.customersInSystem || 0; // average number of customers in system
-  const Lq = L - (currentMetrics.utilization * totalStations); // average queue length
-  // const W = lambda > 0 ? L / lambda : 0; // average time in system (unused)
-  const Wq = lambda > 0 ? Lq / lambda : 0; // average wait time in queue
+  const Lq = L - ((currentMetrics.utilization || 0) * totalStations); // average queue length
   
   // Probability of zero customers in system (p0) for M/M/c model
   let p0 = 0;
@@ -120,7 +149,7 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
             <div>
               <p className="text-sm font-medium text-blue-200">Avg Wait Time (Wq)</p>
               <p className="text-2xl font-bold text-blue-100">
-                {Wq.toFixed(1)}m
+                {avgWaitTimeMinutes.toFixed(1)}m
               </p>
             </div>
             <Clock className="w-8 h-8 text-blue-400" />
@@ -211,123 +240,258 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
       </div>
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Wait Time Trend */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300">
+        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
           <h4 className="text-md font-medium text-gray-200 mb-4">Wait Time Trend</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-              <XAxis dataKey="time" stroke="rgba(156,163,175,0.6)" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} />
-              <YAxis stroke="rgba(156,163,175,0.6)" label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft', fill: 'rgba(156,163,175,0.6)' }} />
-              <Tooltip 
-                formatter={(value: number) => [`${value.toFixed(1)} min`, 'Wait Time']}
-                contentStyle={{
-                  backgroundColor: '#374151',
-                  border: '1px solid #6B7280',
-                  borderRadius: '8px',
-                  color: '#F3F4F6'
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="waitTime"
-                stroke="#3B82F6"
-                strokeWidth={3}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[250px] flex items-center justify-center">
+            {hasData ? (
+              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
+                <ResponsiveContainer width="99%" height={220} debounce={50}>
+                  <LineChart 
+                    data={timeSeriesData.map(d => ({
+                      ...d,
+                      time: Number(d.time),
+                      waitTime: Number(d.waitTime)
+                    }))} 
+                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
+                    <XAxis 
+                      dataKey="time" 
+                      type="number"
+                      stroke="rgba(156,163,175,0.6)" 
+                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} 
+                    />
+                    <YAxis 
+                      stroke="rgba(156,163,175,0.6)"
+                      type="number"
+                      allowDecimals={true}
+                      domain={[0, 'auto']}
+                      label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }} 
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${Number(value).toFixed(1)} min`, 'Wait Time']}
+                      contentStyle={{
+                        backgroundColor: '#374151',
+                        border: '1px solid #6B7280',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      name="Wait Time"
+                      type="monotone"
+                      dataKey="waitTime"
+                      stroke="#3B82F6"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full w-full">
+                <p className="text-gray-400 italic">Waiting for simulation data...</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Throughput Trend */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300">
+        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
           <h4 className="text-md font-medium text-gray-200 mb-4">Throughput Trend</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-              <XAxis dataKey="time" stroke="rgba(156,163,175,0.6)" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} />
-              <YAxis stroke="rgba(156,163,175,0.6)" label={{ value: 'Customers/hr', angle: -90, position: 'insideLeft', fill: 'rgba(156,163,175,0.6)' }} />
-              <Tooltip 
-                formatter={(value: number) => [`${value.toFixed(0)}/hr`, 'Throughput']}
-                contentStyle={{
-                  backgroundColor: '#374151',
-                  border: '1px solid #6B7280',
-                  borderRadius: '8px',
-                  color: '#F3F4F6'
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="throughput"
-                stroke="#10B981"
-                strokeWidth={3}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[250px] flex items-center justify-center">
+            {hasData ? (
+              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
+                <ResponsiveContainer width="99%" height={220} debounce={50}>
+                  <LineChart 
+                    data={timeSeriesData.map(d => ({
+                      ...d,
+                      time: Number(d.time),
+                      throughput: Number(d.throughput)
+                    }))} 
+                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
+                    <XAxis 
+                      dataKey="time" 
+                      type="number"
+                      stroke="rgba(156,163,175,0.6)" 
+                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} 
+                    />
+                    <YAxis 
+                      stroke="rgba(156,163,175,0.6)" 
+                      type="number"
+                      allowDecimals={false}
+                      domain={[0, 'auto']}
+                      label={{ value: 'Customers/hr', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }} 
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${Number(value).toFixed(0)}/hr`, 'Throughput']}
+                      contentStyle={{
+                        backgroundColor: '#374151',
+                        border: '1px solid #6B7280',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      name="Throughput"
+                      type="monotone"
+                      dataKey="throughput"
+                      stroke="#10B981"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full w-full">
+                <p className="text-gray-400 italic">Waiting for simulation data...</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Station Utilization */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300">
+        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
           <h4 className="text-md font-medium text-gray-200 mb-4">Station Utilization</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={stationData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-              <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} stroke="rgba(156,163,175,0.6)" />
-              <YAxis stroke="rgba(156,163,175,0.6)" label={{ value: 'Utilization (%)', angle: -90, position: 'insideLeft', fill: 'rgba(156,163,175,0.6)' }} />
-              <Tooltip 
-                formatter={(value: number) => [`${value.toFixed(1)}%`, 'Utilization']}
-                contentStyle={{
-                  backgroundColor: '#374151',
-                  border: '1px solid #6B7280',
-                  borderRadius: '8px',
-                  color: '#F3F4F6'
-                }}
-              />
-              <Bar
-                dataKey="utilization"
-                fill="#8B5CF6"
-              />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[250px] flex items-center justify-center">
+            {stationData.length > 0 ? (
+              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
+                <ResponsiveContainer width="99%" height={220} debounce={50}>
+                  <BarChart 
+                    data={stationData.map(d => ({
+                      ...d,
+                      utilization: Number(d.utilization),
+                      customers: Number(d.customers)
+                    }))} 
+                    margin={{ top: 5, right: 20, left: 10, bottom: 25 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={60} 
+                      stroke="rgba(156,163,175,0.6)"
+                      tick={{ fontSize: 12 }}
+                      interval={0}
+                    />
+                    <YAxis 
+                      stroke="rgba(156,163,175,0.6)" 
+                      type="number"
+                      allowDecimals={false}
+                      domain={[0, 100]}
+                      label={{ value: 'Utilization (%)', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }} 
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => [`${Number(value).toFixed(1)}%`, 'Utilization']}
+                      contentStyle={{
+                        backgroundColor: '#374151',
+                        border: '1px solid #6B7280',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Bar
+                      name="Utilization"
+                      dataKey="utilization"
+                      fill="#8B5CF6"
+                      isAnimationActive={false}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full w-full">
+                <p className="text-gray-400 italic">No active stations to display</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* System Overview */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300">
+        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
           <h4 className="text-md font-medium text-gray-200 mb-4">System Overview</h4>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={timeSeriesData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-              <XAxis dataKey="time" stroke="rgba(156,163,175,0.6)" label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} />
-              <YAxis stroke="rgba(156,163,175,0.6)" />
-              <Tooltip 
-                contentStyle={{
-                  backgroundColor: '#374151',
-                  border: '1px solid #6B7280',
-                  borderRadius: '8px',
-                  color: '#F3F4F6'
-                }}
-              />
-              <Legend />
-              <Line
-                type="monotone"
-                dataKey="utilization"
-                stroke="#A78BFA"
-                strokeWidth={3}
-                name="Utilization %"
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="queueLength"
-                stroke="#F87171"
-                strokeWidth={3}
-                name="Queue Length"
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="w-full h-[250px] flex items-center justify-center">
+            {hasData ? (
+              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
+                <ResponsiveContainer width="99%" height={220} debounce={50}>
+                  <LineChart 
+                    data={timeSeriesData.map(d => ({
+                      ...d,
+                      time: Number(d.time),
+                      utilization: Number(d.utilization),
+                      queueLength: Number(d.queueLength)
+                    }))} 
+                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
+                    <XAxis 
+                      dataKey="time" 
+                      type="number"
+                      stroke="rgba(156,163,175,0.6)" 
+                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} 
+                    />
+                    <YAxis 
+                      stroke="rgba(156,163,175,0.6)"
+                      type="number"
+                      allowDecimals={true}
+                      domain={[0, 'auto']}
+                      label={{ value: 'Metrics', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }}
+                    />
+                    <Tooltip 
+                      formatter={(value: number, name: string) => [
+                        `${Number(value).toFixed(1)}${name.includes('Utilization') ? '%' : ''}`, 
+                        name
+                      ]}
+                      contentStyle={{
+                        backgroundColor: '#374151',
+                        border: '1px solid #6B7280',
+                        borderRadius: '8px',
+                        color: '#F3F4F6'
+                      }}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      name="Utilization %"
+                      type="monotone"
+                      dataKey="utilization"
+                      stroke="#A78BFA"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                    <Line
+                      name="Queue Length"
+                      type="monotone"
+                      dataKey="queueLength"
+                      stroke="#F87171"
+                      strokeWidth={2}
+                      dot={{ r: 2 }}
+                      activeDot={{ r: 4 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full w-full">
+                <p className="text-gray-400 italic">Waiting for simulation data...</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -346,11 +510,11 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
           </div>
           <div className="text-center p-4 bg-gray-600/50 rounded-lg">
             <div className="text-3xl font-bold mb-2">
-              {Wq < 3 ? '🟢' : Wq < 7 ? '🟡' : '🔴'}
+              {avgWaitTimeMinutes < 3 ? '🟢' : avgWaitTimeMinutes < 7 ? '🟡' : '🔴'}
             </div>
             <p className="text-sm text-gray-300 font-medium">Wait Time</p>
             <p className="text-xs text-gray-400 mt-1">
-              {Wq < 3 ? 'Excellent' : Wq < 7 ? 'Good' : 'Poor'}
+              {avgWaitTimeMinutes < 3 ? 'Excellent' : avgWaitTimeMinutes < 7 ? 'Good' : 'Poor'}
             </p>
           </div>
           <div className="text-center p-4 bg-gray-600/50 rounded-lg">
@@ -388,4 +552,22 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
       </div>
     </div>
   );
+  } catch (error) {
+    console.error('Error rendering simulation dashboard:', error);
+    return (
+      <div className="bg-gray-700 rounded-lg shadow-sm border border-gray-600 p-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-100">Operations Research Dashboard</h3>
+          <div className="flex items-center space-x-2 text-sm text-gray-300">
+            <Activity className="w-4 h-4 text-red-400" />
+            <span>Chart Rendering Error</span>
+          </div>
+        </div>
+        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg text-center">
+          <p className="text-gray-400 mb-4">There was an error rendering the charts. Try refreshing the page.</p>
+          <p className="text-xs text-gray-500">Error details: {String(error).slice(0, 100)}</p>
+        </div>
+      </div>
+    );
+  }
 };

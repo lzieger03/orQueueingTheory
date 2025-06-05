@@ -25,11 +25,12 @@ export const simulationHistory: SimulationData[] = sample.hourlyArrivalRates.map
     utilization // utilization factor
   );
   
-  const waitTime = waitTimeSeconds / 60; // Convert to minutes
+  // Store wait time in SECONDS for consistency with engine
+  const waitTimeSeconds_final = waitTimeSeconds; // Keep in seconds for consistency
   
   return {
     timestamp: index * 3600,       // hourly steps
-    averageWaitTime: waitTime,     // more realistic wait time calculation
+    averageWaitTime: waitTimeSeconds_final, // wait time in SECONDS for consistency with engine
     throughput: rate,              // customers per hour
     utilization: utilization,      // more accurate utilization
     queueLength: queueLength,      // more realistic queue length

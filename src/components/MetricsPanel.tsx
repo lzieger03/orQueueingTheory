@@ -2,6 +2,7 @@
 import React from 'react';
 import type { Metrics, CheckoutStation, Customer } from '../types';
 import { Clock, Users, Activity, TrendingUp, DollarSign, Smile } from 'lucide-react';
+import { OperationsResearchMath } from '../utils/operationsResearchMath';
 
 interface MetricCardProps {
   title: string;
@@ -64,7 +65,7 @@ export function MetricsPanel({ metrics, currentTime, stations, mainQueue = [] }:
     <div className="grid grid-cols-3 gap-6">
       <MetricCard
         title="Avg Wait Time"
-        value={`${(safeMetrics.averageWaitTime / 60).toFixed(1)}m`}
+        value={`${OperationsResearchMath.convertSecondsToMinutes(safeMetrics.averageWaitTime).toFixed(1)}m`}
         icon={<Clock className="w-5 h-5 text-blue-400" />}
         color="bg-blue-600/20 p-2 rounded-lg"
         description="Minutes per customer"

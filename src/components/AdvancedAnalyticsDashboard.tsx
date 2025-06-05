@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { TrendingUp, TrendingDown, Users, Clock, Target, AlertTriangle } from 'lucide-react';
 import type { Metrics, CheckoutStation, Customer, SimulationData } from '../types';
+import { OperationsResearchMath } from '../utils/operationsResearchMath';
 
 interface AdvancedAnalyticsDashboardProps {
   currentMetrics: Metrics;
@@ -76,7 +77,7 @@ export function AdvancedAnalyticsDashboard({
   const metricCards: MetricCard[] = [
     {
       title: 'Average Wait Time',
-      value: `${(currentMetrics.averageWaitTime / 60).toFixed(1)}m`,
+      value: `${OperationsResearchMath.convertSecondsToMinutes(currentMetrics.averageWaitTime).toFixed(1)}m`,
       change: advancedMetrics.waitTimeTrend,
       trend: advancedMetrics.waitTimeTrend > 5 ? 'up' : advancedMetrics.waitTimeTrend < -5 ? 'down' : 'stable',
       icon: <Clock className="w-5 h-5" />,
@@ -127,29 +128,45 @@ export function AdvancedAnalyticsDashboard({
                 Math.max(0, 60 - station.queue.length * 15)
   }));
 
-  // Performance trend data - ensure consistent metrics
-  const trendData = simulationData.slice(-20).map((data, index) => {
-    // Convert wait time to minutes for consistent display
-    const waitTimeMinutes = data.averageWaitTime / 60;
-    
-    // Try to use satisfaction from data if available, otherwise calculate from wait time
-    // This ensures consistency with the main metrics
-    let satisfaction;
-    if ('customerSatisfaction' in data) {
-      satisfaction = (data as any).customerSatisfaction;
-    } else {
-      // Fallback calculation based on wait time - inverse relationship
-      satisfaction = Math.max(0, 100 - (waitTimeMinutes * 20));
-    }
-    
-    return {
-      time: `${Math.floor(index * 0.5)}m`,
-      waitTime: waitTimeMinutes,
-      throughput: data.throughput,
-      utilization: data.utilization * 100,
-      satisfaction: satisfaction
-    };
-  });
+  // Performance trend data - ensure consistent metrics with better validation
+  const trendData = (Array.isArray(simulationData) && simulationData.length > 0)
+    ? simulationData.slice(-20).map((data, index) => {
+        // Validate all data points with fallbacks
+        const safeData = {
+          averageWaitTime: data.averageWaitTime || 0,
+          throughput: data.throughput || 0,
+          utilization: data.utilization || 0,
+          customerSatisfaction: 'customerSatisfaction' in data ? (data as any).customerSatisfaction : undefined
+        };
+        
+        // Convert wait time to minutes for consistent display using centralized method
+        const waitTimeMinutes = OperationsResearchMath.convertSecondsToMinutes(safeData.averageWaitTime);
+        
+        // Try to use satisfaction from data if available, otherwise calculate from wait time
+        // This ensures consistency with the main metrics
+        let satisfaction;
+        if (safeData.customerSatisfaction !== undefined) {
+          satisfaction = safeData.customerSatisfaction;
+        } else {
+          // Fallback calculation based on wait time - inverse relationship
+          satisfaction = Math.max(0, 100 - (waitTimeMinutes * 20));
+        }
+        
+        return {
+          time: `${Math.floor(index * 0.5)}m`,
+          waitTime: waitTimeMinutes,
+          throughput: safeData.throughput,
+          utilization: safeData.utilization * 100,
+          satisfaction: satisfaction
+        };
+      })
+    : Array.from({ length: 5 }, (_, i) => ({ 
+        time: `${i}m`, 
+        waitTime: 0, 
+        throughput: 0, 
+        utilization: 0, 
+        satisfaction: 0 
+      })); // Provide fallback data for empty simulation data
 
   return (
     <div className="space-y-6">
@@ -207,115 +224,14 @@ export function AdvancedAnalyticsDashboard({
       {/* Performance Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Wait Time & Throughput Trends */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4" style={{ minHeight: '350px' }}>
           <h3 className="text-lg font-semibold text-gray-100 mb-4">Performance Trends</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="time" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  color: '#F3F4F6'
-                }} 
-              />
-              <Legend />
-              <Line 
-                type="monotone" 
-                dataKey="waitTime" 
-                stroke="#3B82F6" 
-                strokeWidth={2}
-                name="Wait Time (min)"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="throughput" 
-                stroke="#10B981" 
-                strokeWidth={2}
-                name="Throughput (/hr)"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Station Performance */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-100 mb-4">Station Performance</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={stationData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="name" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  color: '#F3F4F6'
-                }} 
-              />
-              <Legend />
-              <Bar dataKey="efficiency" fill="#F59E0B" name="Efficiency %" />
-              <Bar dataKey="queueLength" fill="#EF4444" name="Queue Length" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Utilization Heatmap & Customer Satisfaction */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Utilization Over Time */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-100 mb-4">Utilization Pattern</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis dataKey="time" stroke="#9CA3AF" />
-              <YAxis stroke="#9CA3AF" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#1F2937', 
-                  border: '1px solid #374151',
-                  color: '#F3F4F6'
-                }} 
-              />
-              <Area 
-                type="monotone" 
-                dataKey="utilization" 
-                stroke="#8B5CF6" 
-                fill="url(#utilizationGradient)"
-                strokeWidth={2}
-              />
-              <defs>
-                <linearGradient id="utilizationGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
-                </linearGradient>
-              </defs>
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Customer Satisfaction Breakdown */}
-        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-100 mb-4">Customer Satisfaction</h3>
-          <div className="flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={satisfactionData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {satisfactionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
+          <div style={{ width: '100%', height: '250px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="time" stroke="#9CA3AF" />
+                <YAxis stroke="#9CA3AF" />
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: '#1F2937', 
@@ -324,8 +240,121 @@ export function AdvancedAnalyticsDashboard({
                   }} 
                 />
                 <Legend />
-              </PieChart>
+                <Line 
+                  type="monotone" 
+                  dataKey="waitTime" 
+                  stroke="#3B82F6" 
+                  strokeWidth={2}
+                  name="Wait Time (min)"
+                  isAnimationActive={true}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="throughput" 
+                  stroke="#10B981" 
+                  strokeWidth={2}
+                  name="Throughput (/hr)"
+                  isAnimationActive={true}
+                />
+              </LineChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Station Performance */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">Station Performance</h3>
+          <div style={{ width: '100%', height: '250px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={stationData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="name" stroke="#9CA3AF" />
+                <YAxis stroke="#9CA3AF" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1F2937', 
+                    border: '1px solid #374151',
+                    color: '#F3F4F6'
+                  }} 
+                />
+                <Legend />
+                <Bar dataKey="efficiency" fill="#F59E0B" name="Efficiency %" isAnimationActive={true} />
+                <Bar dataKey="queueLength" fill="#EF4444" name="Queue Length" isAnimationActive={true} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Utilization Heatmap & Customer Satisfaction */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Utilization Over Time */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">Utilization Pattern</h3>
+          <div style={{ width: '100%', height: '200px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                <XAxis dataKey="time" stroke="#9CA3AF" />
+                <YAxis stroke="#9CA3AF" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1F2937', 
+                    border: '1px solid #374151',
+                    color: '#F3F4F6'
+                  }} 
+                />
+                <Area 
+                  type="monotone" 
+                  dataKey="utilization" 
+                  stroke="#8B5CF6" 
+                  fill="url(#utilizationGradient)"
+                  strokeWidth={2}
+                  isAnimationActive={true}
+                />
+                <defs>
+                  <linearGradient id="utilizationGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Customer Satisfaction Breakdown */}
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+          <h3 className="text-lg font-semibold text-gray-100 mb-4">Customer Satisfaction</h3>
+          <div className="flex items-center justify-center">
+            <div style={{ width: '100%', height: '200px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={satisfactionData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={40}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    isAnimationActive={true}
+                  >
+                    {satisfactionData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: '#1F2937', 
+                      border: '1px solid #374151',
+                      color: '#F3F4F6'
+                    }} 
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
           
           {/* Overall Score */}
