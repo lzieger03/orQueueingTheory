@@ -145,10 +145,8 @@ function DraggableStation({
             left: pos.x - station.position.x, 
             top: pos.y - station.position.y,
             animationDuration: `${animationTime * 3}s`,
-            transitionDuration: `${animationTime * 1.5}s`,
-            '--move-x': `${pos.x - station.position.x}px`,
-            '--move-y': `${pos.y - station.position.y}px`
-          }}
+            transitionDuration: `${animationTime * 1.5}s`
+          } as React.CSSProperties}
         />
       ))}
 
@@ -408,12 +406,8 @@ export function LayoutEditor({
                 left: position.x, 
                 top: position.y,
                 transition: `all ${animationTime}s ease`,
-                animationDuration: `${animationTime * 3}s`,
-                ...({
-                  '--move-x': `${position.x}px`,
-                  '--move-y': `${position.y}px`
-                } as React.CSSProperties)
-              }}
+                animationDuration: `${animationTime * 3}s`
+              } as React.CSSProperties}
               title={`Customer ${customer.id} - ${customer.itemCount} items`}
             />
           );

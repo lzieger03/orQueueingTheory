@@ -63,10 +63,8 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
               left: queuePositions.positions[index]?.x || 0,
               top: queuePositions.positions[index]?.y || 0,
               transition: `all ${transitionTime}s ease`,
-              animationDuration: `${animationTime * 3}s`,
-              '--move-x': '0px',
-              '--move-y': '0px'
-            }}
+              animationDuration: `${animationTime * 3}s`
+            } as React.CSSProperties}
           >
             {/* Item count indicator */}
             {customer.itemCount > 10 && (
