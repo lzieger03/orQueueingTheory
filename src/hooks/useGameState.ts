@@ -110,11 +110,20 @@ const gameStateMachine = createMachine({
       simulationSpeed: (_, event: any) => event.speed
     }),
     updateSimulation: assign({
-      customers: (_, event: any) => event.customers,
+      customers: (_, event: any) => {
+        console.log('updateSimulation action - customers:', event.customers?.length || 0, event.customers);
+        return event.customers;
+      },
       metrics: (_, event: any) => event.metrics,
       currentTime: (_, event: any) => event.currentTime,
-      stations: (_, event: any) => event.stations,
-      mainQueue: (_, event: any) => event.mainQueue || [] // Update main queue
+      stations: (_, event: any) => {
+        console.log('updateSimulation action - stations:', event.stations?.length || 0, event.stations);
+        return event.stations;
+      },
+      mainQueue: (_, event: any) => {
+        console.log('updateSimulation action - mainQueue:', event.mainQueue?.length || 0, event.mainQueue);
+        return event.mainQueue || [];
+      }
     })
   }
 });
@@ -311,15 +320,25 @@ export function useGameState() {
           
           // Get fresh metrics after simulation steps
           const currentMetrics = simulationEngine.getCurrentMetrics();
+          
+          // Debug: Log customer data being sent
+          const customers = simulationEngine.getCustomers();
+          const mainQueue = simulationEngine.getMainQueue();
+          const stations = simulationEngine.getStations();
+          
+          console.log('Sending UPDATE_SIMULATION:');
+          console.log('  - customers:', customers.length, customers);
+          console.log('  - mainQueue:', mainQueue.length, mainQueue);
+          console.log('  - stations with queues:', stations.map(s => ({ id: s.id, queueLength: s.queue?.length || 0 })));
            
           // Update state with current simulation data
           send({
             type: 'UPDATE_SIMULATION',
-            customers: simulationEngine.getCustomers(),
+            customers,
             metrics: currentMetrics,
             currentTime: simulationEngine.getCurrentTime(),
-            stations: simulationEngine.getStations(),
-            mainQueue: simulationEngine.getMainQueue()
+            stations,
+            mainQueue
           });
         }
 

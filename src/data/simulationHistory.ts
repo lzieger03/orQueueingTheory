@@ -1,6 +1,7 @@
 // Improved simulation history data for more accurate dashboard
 import type { SimulationData, HistoricalData } from '../types';
 import { sampleHistoricalData } from './samples';
+import { WaitTimeCalculator } from '../utils/waitTimeCalculator';
 
 // Choose sample based on default parameters or first scenario
 const sample: HistoricalData = sampleHistoricalData.find((s: HistoricalData) => s.dayType === 'weekday') || sampleHistoricalData[0];
@@ -16,8 +17,15 @@ export const simulationHistory: SimulationData[] = sample.hourlyArrivalRates.map
   const queueFactor = utilization > 0.8 ? 4 : (utilization > 0.6 ? 2 : 1);
   const queueLength = Math.round(rate * utilization * queueFactor / sample.regularStations);
   
-  // Calculate realistic wait time based on queue length and service time
-  const waitTime = serviceTimeMin * (1 + queueLength * utilization);
+  // Calculate realistic wait time using standardized calculator
+  const waitTimeSeconds = WaitTimeCalculator.calculateApproximateWaitTime(
+    rate, // arrival rate per hour
+    sample.averageServiceTimes.regular, // service time in seconds
+    sample.regularStations, // server count
+    utilization // utilization factor
+  );
+  
+  const waitTime = waitTimeSeconds / 60; // Convert to minutes
   
   return {
     timestamp: index * 3600,       // hourly steps

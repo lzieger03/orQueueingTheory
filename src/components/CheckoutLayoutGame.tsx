@@ -2,6 +2,7 @@
 import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { LayoutEditor } from './LayoutEditor';
 import { SimulationDashboard } from './SimulationDashboard';
+import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
 import { ParameterControls } from './ParameterControls';
 import { MetricsPanel } from './MetricsPanel';
 import { TutorialOverlay } from './TutorialOverlay';
@@ -12,7 +13,7 @@ import { SimulationSpeedButton } from './SimulationSpeedButton';
 import { useGameState } from '../hooks/useGameState';
 import { storeLayouts } from '../data/samples';
 import type { CheckoutStation, CheckoutType } from '../types';
-import { Play, Pause, Square, RotateCcw, Settings, Brain, Info, HelpCircle } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, Settings, Brain, Info, HelpCircle, BarChart3 } from 'lucide-react';
 
 // Lazy load the AI Advisor component to reduce initial bundle size
 const AIAdvisor = lazy(() => import('./AIAdvisor'));
@@ -50,6 +51,7 @@ export default function CheckoutLayoutGame() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [showAdvancedAnalytics, setShowAdvancedAnalytics] = useState(false);
   const [showInfoPanel, setShowInfoPanel] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [isFirstTime, setIsFirstTime] = useState(true);
@@ -404,6 +406,20 @@ export default function CheckoutLayoutGame() {
                   
                   <button
                     onClick={() => {
+                      setShowAdvancedAnalytics(!showAdvancedAnalytics);
+                      if (!showAdvancedAnalytics) {
+                        notifyInfo('Advanced Analytics', 'Explore detailed performance insights and trends!');
+                      }
+                    }}
+                    className={`p-2.5 rounded-lg flex items-center gap-2 ${showAdvancedAnalytics ? 'bg-purple-600 text-purple-100' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}`}
+                    title="Advanced Analytics"
+                  >
+                    <BarChart3 className="w-5 h-5" />
+                    <span className="text-sm hidden sm:inline">Analytics</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
                       if (!context.isAIEnabled) enableAI();
                       setShowAI(!showAI);
                     }}
@@ -480,6 +496,19 @@ export default function CheckoutLayoutGame() {
               currentMetrics={context.metrics}
             />
           </div>
+          
+          {/* Advanced Analytics Dashboard - Shown conditionally */}
+          {showAdvancedAnalytics && (
+            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-5">
+              <h3 className="text-xl font-semibold mb-4 text-gray-100">Advanced Analytics</h3>
+              <AdvancedAnalyticsDashboard
+                currentMetrics={context.metrics}
+                simulationData={context.simulationHistory || []}
+                stations={context.stations}
+                customers={context.customers}
+              />
+            </div>
+          )}
           
           {/* AI Advisor - Shown conditionally */}
           {showAI && context.isAIEnabled && (

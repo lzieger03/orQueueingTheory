@@ -200,6 +200,13 @@ export function LayoutEditor({
   const [showPalette, setShowPalette] = useState(!disabled);
   const [dropElement, setDropElement] = useState<HTMLDivElement | null>(null);
 
+  // Debug: Log the received props
+  console.log('LayoutEditor props received:');
+  console.log('  - customers:', customers?.length || 0, customers);
+  console.log('  - mainQueue:', mainQueue?.length || 0, mainQueue);
+  console.log('  - stations:', stations?.length || 0, stations);
+  console.log('  - isSimulating:', isSimulating);
+
   const [{ isOver }, drop] = useDrop({
     accept: 'station',
     drop: (item: any, monitor) => {
