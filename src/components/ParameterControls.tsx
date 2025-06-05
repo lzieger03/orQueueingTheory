@@ -63,7 +63,7 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
       dayType,
       serviceTimeRegular: storeData.avgServiceTime,
       serviceTimeKiosk: Math.round(storeData.avgServiceTime * 1.2),
-      arrivalRate: dayType === 'weekday' ? 0.44 : 0.77, // Based on real customer counts
+      arrivalRate: dayType === 'weekday' ? 26 : 46, // Based on real customer counts converted to customers/hour
       breakInterval: dayType === 'weekday' ? 90 : 0, // No breaks on busy weekends
     });
   };
@@ -109,12 +109,12 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
           label="Arrival Rate"
           value={params.arrivalRate}
           min={1}
-          max={20}
-          step={0.5}
-          unit=" customers/min"
+          max={150}
+          step={1}
+          unit=" customers/hour"
           onChange={(value) => onUpdate({ arrivalRate: value })}
           disabled={disabled}
-          description="How many customers arrive per minute"
+          description="How many customers arrive per hour"
         />
 
         {/* Service Times */}
@@ -178,7 +178,7 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
           <div className="grid grid-cols-1 gap-3">
             <button
               onClick={() => onUpdate({
-                arrivalRate: 15,
+                arrivalRate: 90,
                 simulationDuration: 30,
                 dayType: 'weekday'
               })}
@@ -191,7 +191,7 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
 
             <button
               onClick={() => onUpdate({
-                arrivalRate: 5,
+                arrivalRate: 30,
                 simulationDuration: 120,
                 dayType: 'weekday'
               })}
@@ -204,7 +204,7 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
 
             <button
               onClick={() => onUpdate({
-                arrivalRate: 12,
+                arrivalRate: 72,
                 simulationDuration: 90,
                 dayType: 'weekend'
               })}
@@ -223,11 +223,11 @@ export function ParameterControls({ params, onUpdate, disabled }: ParameterContr
           <div className="text-sm text-gray-300 space-y-2">
             <div className="flex justify-between p-2 bg-gray-600/50 rounded">
               <span>Total customers:</span>
-              <span className="font-mono">~{Math.round(params.arrivalRate * params.simulationDuration)}</span>
+              <span className="font-mono">~{Math.round((params.arrivalRate * params.simulationDuration) / 60)}</span>
             </div>
             <div className="flex justify-between p-2 bg-gray-600/50 rounded">
               <span>Peak rate:</span>
-              <span className="font-mono">{params.arrivalRate} customers/min</span>
+              <span className="font-mono">{params.arrivalRate} customers/hour</span>
             </div>
             <div className="flex justify-between p-2 bg-gray-600/50 rounded">
               <span>Duration:</span>
