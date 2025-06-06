@@ -1,20 +1,8 @@
 // filepath: /Users/lars/Downloads/improved_checkoutGame/checkoutGame/checkoutGame/src/components/SimulationDashboard.tsx
 // Improved SimulationDashboard component with realistic Operations Research metrics
 import React from 'react';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import { Activity, Clock, Users, TrendingUp, DollarSign, BarChart2 } from 'lucide-react';
-import type { SimulationData, CheckoutStation } from '../types';
+import type { CheckoutStation } from '../types';
 import { OperationsResearchMath } from '../utils/operationsResearchMath';
 
 interface CurrentMetrics {
@@ -29,63 +17,18 @@ interface CurrentMetrics {
 }
 
 interface SimulationDashboardProps {
-  simulationData: SimulationData[];
   stations: CheckoutStation[];
   currentMetrics: CurrentMetrics;
 }
 
 export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
-  simulationData,
   stations,
   currentMetrics,
 }) => {
   // Add error handling wrapper to prevent crashes
   try {
-    // Add empty data check with fallback
-    const hasData = Array.isArray(simulationData) && simulationData.length > 0;
-    
-    // Prepare data for charts with validation and limiting data points for better performance
-    const timeSeriesData = hasData 
-      ? simulationData
-          .slice(-30) // Limit to last 30 data points for better chart performance
-          .map((data) => ({
-            time: (data.timestamp || 0) / 60, // timestamp in minutes with fallback
-            waitTime: OperationsResearchMath.convertSecondsToMinutes(data.averageWaitTime || 0), // Convert seconds to minutes with fallback
-            throughput: data.throughput || 0,
-            utilization: (data.utilization || 0) * 100,
-            queueLength: data.queueLength || 0,
-          }))
-      : Array.from({ length: 5 }, (_, i) => ({ 
-          time: i, 
-          waitTime: 0, 
-          throughput: 0, 
-          utilization: 0, 
-          queueLength: 0 
-        })); // Provide multiple fallback data points
-
     // Station utilization data
     const stationsArray = Array.isArray(stations) ? stations : [];
-    
-    // Calculate individual station utilization based on queue length and serving status
-    const stationData = stationsArray.map((station, index) => {
-      try {
-        // Calculate individual station utilization based on queue length and serving status
-        const stationUtilization = station.servingCustomer ? 100 : 0;
-        
-        return {
-          name: `${station.type === 'regular' ? 'Regular' : 'Self-Service'} ${index + 1}`,
-          utilization: stationUtilization,
-          customers: (station.queue?.length || 0) + (station.servingCustomer ? 1 : 0),
-        };
-      } catch (err) {
-        console.error('Error processing station data:', err);
-        return {
-          name: `Station ${index + 1}`,
-          utilization: 0,
-          customers: 0
-        };
-      }
-    });
 
   // Calculate Operations Research metrics using centralized methods
   const regularStations = stationsArray.filter(s => s.type === 'regular' && s.isActive).length;
@@ -236,262 +179,6 @@ export const SimulationDashboard: React.FC<SimulationDashboardProps> = ({
             <BarChart2 className="w-8 h-8 text-yellow-400" />
           </div>
           <p className="text-xs text-yellow-300 mt-1">Prob. of waiting in queue</p>
-        </div>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Wait Time Trend */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
-          <h4 className="text-md font-medium text-gray-200 mb-4">Wait Time Trend</h4>
-          <div className="w-full h-[250px] flex items-center justify-center">
-            {hasData ? (
-              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
-                <ResponsiveContainer width="99%" height={220} debounce={50}>
-                  <LineChart 
-                    data={timeSeriesData.map(d => ({
-                      ...d,
-                      time: Number(d.time),
-                      waitTime: Number(d.waitTime)
-                    }))} 
-                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-                    <XAxis 
-                      dataKey="time" 
-                      type="number"
-                      stroke="rgba(156,163,175,0.6)" 
-                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} 
-                    />
-                    <YAxis 
-                      stroke="rgba(156,163,175,0.6)"
-                      type="number"
-                      allowDecimals={true}
-                      domain={[0, 'auto']}
-                      label={{ value: 'Wait Time (min)', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }} 
-                    />
-                    <Tooltip 
-                      formatter={(value: number) => [`${Number(value).toFixed(1)} min`, 'Wait Time']}
-                      contentStyle={{
-                        backgroundColor: '#374151',
-                        border: '1px solid #6B7280',
-                        borderRadius: '8px',
-                        color: '#F3F4F6'
-                      }}
-                    />
-                    <Legend verticalAlign="top" height={36} />
-                    <Line
-                      name="Wait Time"
-                      type="monotone"
-                      dataKey="waitTime"
-                      stroke="#3B82F6"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                      activeDot={{ r: 4 }}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full w-full">
-                <p className="text-gray-400 italic">Waiting for simulation data...</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Throughput Trend */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
-          <h4 className="text-md font-medium text-gray-200 mb-4">Throughput Trend</h4>
-          <div className="w-full h-[250px] flex items-center justify-center">
-            {hasData ? (
-              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
-                <ResponsiveContainer width="99%" height={220} debounce={50}>
-                  <LineChart 
-                    data={timeSeriesData.map(d => ({
-                      ...d,
-                      time: Number(d.time),
-                      throughput: Number(d.throughput)
-                    }))} 
-                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-                    <XAxis 
-                      dataKey="time" 
-                      type="number"
-                      stroke="rgba(156,163,175,0.6)" 
-                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} 
-                    />
-                    <YAxis 
-                      stroke="rgba(156,163,175,0.6)" 
-                      type="number"
-                      allowDecimals={false}
-                      domain={[0, 'auto']}
-                      label={{ value: 'Customers/hr', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }} 
-                    />
-                    <Tooltip 
-                      formatter={(value: number) => [`${Number(value).toFixed(0)}/hr`, 'Throughput']}
-                      contentStyle={{
-                        backgroundColor: '#374151',
-                        border: '1px solid #6B7280',
-                        borderRadius: '8px',
-                        color: '#F3F4F6'
-                      }}
-                    />
-                    <Legend verticalAlign="top" height={36} />
-                    <Line
-                      name="Throughput"
-                      type="monotone"
-                      dataKey="throughput"
-                      stroke="#10B981"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                      activeDot={{ r: 4 }}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full w-full">
-                <p className="text-gray-400 italic">Waiting for simulation data...</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Station Utilization */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
-          <h4 className="text-md font-medium text-gray-200 mb-4">Station Utilization</h4>
-          <div className="w-full h-[250px] flex items-center justify-center">
-            {stationData.length > 0 ? (
-              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
-                <ResponsiveContainer width="99%" height={220} debounce={50}>
-                  <BarChart 
-                    data={stationData.map(d => ({
-                      ...d,
-                      utilization: Number(d.utilization),
-                      customers: Number(d.customers)
-                    }))} 
-                    margin={{ top: 5, right: 20, left: 10, bottom: 25 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-                    <XAxis 
-                      dataKey="name" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={60} 
-                      stroke="rgba(156,163,175,0.6)"
-                      tick={{ fontSize: 12 }}
-                      interval={0}
-                    />
-                    <YAxis 
-                      stroke="rgba(156,163,175,0.6)" 
-                      type="number"
-                      allowDecimals={false}
-                      domain={[0, 100]}
-                      label={{ value: 'Utilization (%)', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }} 
-                    />
-                    <Tooltip 
-                      formatter={(value: number) => [`${Number(value).toFixed(1)}%`, 'Utilization']}
-                      contentStyle={{
-                        backgroundColor: '#374151',
-                        border: '1px solid #6B7280',
-                        borderRadius: '8px',
-                        color: '#F3F4F6'
-                      }}
-                    />
-                    <Legend verticalAlign="top" height={36} />
-                    <Bar
-                      name="Utilization"
-                      dataKey="utilization"
-                      fill="#8B5CF6"
-                      isAnimationActive={false}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full w-full">
-                <p className="text-gray-400 italic">No active stations to display</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* System Overview */}
-        <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg hover:bg-gray-750 transition-all duration-300 min-h-[350px]">
-          <h4 className="text-md font-medium text-gray-200 mb-4">System Overview</h4>
-          <div className="w-full h-[250px] flex items-center justify-center">
-            {hasData ? (
-              <div className="w-full h-[230px]"> {/* Slightly smaller than parent */}
-                <ResponsiveContainer width="99%" height={220} debounce={50}>
-                  <LineChart 
-                    data={timeSeriesData.map(d => ({
-                      ...d,
-                      time: Number(d.time),
-                      utilization: Number(d.utilization),
-                      queueLength: Number(d.queueLength)
-                    }))} 
-                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(156,163,175,0.2)" />
-                    <XAxis 
-                      dataKey="time" 
-                      type="number"
-                      stroke="rgba(156,163,175,0.6)" 
-                      label={{ value: 'Time (min)', position: 'insideBottom', offset: -5, fill: 'rgba(156,163,175,0.6)' }} 
-                    />
-                    <YAxis 
-                      stroke="rgba(156,163,175,0.6)"
-                      type="number"
-                      allowDecimals={true}
-                      domain={[0, 'auto']}
-                      label={{ value: 'Metrics', angle: -90, position: 'insideLeft', offset: 5, fill: 'rgba(156,163,175,0.6)' }}
-                    />
-                    <Tooltip 
-                      formatter={(value: number, name: string) => [
-                        `${Number(value).toFixed(1)}${name.includes('Utilization') ? '%' : ''}`, 
-                        name
-                      ]}
-                      contentStyle={{
-                        backgroundColor: '#374151',
-                        border: '1px solid #6B7280',
-                        borderRadius: '8px',
-                        color: '#F3F4F6'
-                      }}
-                    />
-                    <Legend verticalAlign="top" height={36} />
-                    <Line
-                      name="Utilization %"
-                      type="monotone"
-                      dataKey="utilization"
-                      stroke="#A78BFA"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                      activeDot={{ r: 4 }}
-                      isAnimationActive={false}
-                    />
-                    <Line
-                      name="Queue Length"
-                      type="monotone"
-                      dataKey="queueLength"
-                      stroke="#F87171"
-                      strokeWidth={2}
-                      dot={{ r: 2 }}
-                      activeDot={{ r: 4 }}
-                      isAnimationActive={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full w-full">
-                <p className="text-gray-400 italic">Waiting for simulation data...</p>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

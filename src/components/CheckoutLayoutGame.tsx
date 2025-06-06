@@ -495,7 +495,6 @@ export default function CheckoutLayoutGame() {
           <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-5">
             <h3 className="text-xl font-semibold mb-4 text-gray-100">Simulation Dashboard</h3>
             <SimulationDashboard
-              simulationData={context.simulationHistory || []}
               stations={context.stations}
               currentMetrics={context.metrics}
             />
