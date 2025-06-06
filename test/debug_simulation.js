@@ -1,7 +1,7 @@
 // Debug script to analyze simulation metrics issues
 
-import { SimulationEngine } from './src/simulation/engine.ts';
-import { defaultSimulationParams } from './src/data/samples.ts';
+import { SimulationEngine } from '../src/simulation/engine.ts';
+import { defaultSimulationParams } from '../src/data/samples.ts';
 
 // Test the simulation with minimal setup
 const testStations = [

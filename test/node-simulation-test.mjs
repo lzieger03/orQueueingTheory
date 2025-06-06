@@ -1,7 +1,7 @@
 // Node.js test to verify simulation engine creates customers
 // This will help us verify if the core simulation logic works
 
-import { SimulationEngine } from './src/simulation/engine.js';
+import { SimulationEngine } from '../src/simulation/engine.js';
 
 console.log('🧪 Testing SimulationEngine customer creation...');
 
