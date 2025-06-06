@@ -208,8 +208,9 @@ export class SimulationEngine {
 
   /**
    * Find the best kiosk station for self-checkout customers
+   * Enhanced with customer behavior modeling
    */
-  private findBestKioskStation(_customer: Customer): CheckoutStation | null {
+  private findBestKioskStation(customer: Customer): CheckoutStation | null {
     // FIXED: Check if there are any kiosk stations at all
     const kioskStations = this.stations.filter(s => s.isActive && s.type === 'kiosk');
     if (kioskStations.length === 0) return null;
@@ -224,14 +225,48 @@ export class SimulationEngine {
 
     if (availableKiosks.length === 0) return null;
     
-    // Find the kiosk with the shortest queue
-    return availableKiosks.reduce((shortest, current) => {
-      return current.queue.length < shortest.queue.length ? current : shortest;
-    }, availableKiosks[0]);
+    // Enhanced customer behavior: consider both queue length and estimated wait time
+    const kioskWithScores = availableKiosks.map(station => {
+      const queueLength = station.queue.length;
+      const isServingCustomer = station.servingCustomer ? 1 : 0;
+      
+      // Estimate wait time based on queue length and service capacity
+      const estimatedWaitTime = (queueLength + isServingCustomer) * station.serviceTime;
+      
+      // Customer preferences affect choice
+      let preferenceScore = 0;
+      
+      // Customers with fewer items prefer shorter queues more strongly
+      if (customer.itemCount <= 10) {
+        preferenceScore -= queueLength * 2; // Strong preference for short queues
+      } else {
+        preferenceScore -= queueLength; // Normal preference
+      }
+      
+      // Customers with cash payments are less likely to use self-checkout if queues are long
+      if (customer.paymentMethod === 'cash' && queueLength > 2) {
+        preferenceScore -= 5; // Penalty for cash users in longer kiosk queues
+      }
+      
+      return {
+        station,
+        score: preferenceScore - estimatedWaitTime / 60, // Convert to minutes for scoring
+        queueLength,
+        estimatedWaitTime
+      };
+    });
+    
+    // Find the station with the best score (highest preference)
+    const bestKiosk = kioskWithScores.reduce((best, current) => {
+      return current.score > best.score ? current : best;
+    }, kioskWithScores[0]);
+    
+    return bestKiosk.station;
   }
 
   /**
    * Find the best regular checkout station for customers in main queue
+   * Enhanced with intelligent load balancing
    */
   private findBestRegularCheckout(): CheckoutStation | null {
     const availableRegular = this.stations.filter(station => {
@@ -242,30 +277,115 @@ export class SimulationEngine {
 
     if (availableRegular.length === 0) return null;
     
-    // Simply find the station with the shortest queue
-    return availableRegular.reduce((shortest, current) => {
-      return current.queue.length < shortest.queue.length ? current : shortest;
-    }, availableRegular[0]);
+    // Enhanced logic: consider multiple factors for optimal station selection
+    const stationScores = availableRegular.map(station => {
+      const queueLength = station.queue.length;
+      const serviceTime = station.serviceTime;
+      
+      // Calculate estimated wait time for this station
+      const estimatedWaitTime = queueLength * serviceTime;
+      
+      // Score based on efficiency (lower is better)
+      let score = estimatedWaitTime + (queueLength * 30); // 30 second penalty per person
+      
+      // Prefer stations with faster service times
+      score += (serviceTime - 75) * 0.5; // Baseline 75 seconds
+      
+      // Small random factor to avoid always choosing the same station
+      score += Math.random() * 10;
+      
+      return {
+        station,
+        score,
+        queueLength,
+        estimatedWaitTime
+      };
+    });
+    
+    // Return the station with the lowest score (best choice)
+    return stationScores.reduce((best, current) => {
+      return current.score < best.score ? current : best;
+    }, stationScores[0]).station;
   }
 
   /**
    * Process the main queue - assign customers to available checkout stations
+   * Enhanced with intelligent customer routing and queue management
    */
   private processMainQueue(): void {
-    // Check for available regular checkout stations
-    while (this.mainQueue.length > 0) {
+    // Process customers in batches to improve efficiency
+    let processedCount = 0;
+    const maxProcessPerCycle = Math.min(3, this.mainQueue.length); // Process up to 3 customers per cycle
+    
+    while (this.mainQueue.length > 0 && processedCount < maxProcessPerCycle) {
       const availableStation = this.findBestRegularCheckout();
       
       if (!availableStation) break; // No available stations
       
-      // Move customer from main queue to station queue
+      // Get the next customer from main queue
       const customer = this.mainQueue.shift()!;
       customer.inMainQueue = false;
+      
+      // Enhanced: Consider customer preferences even for regular checkout
+      if (customer.prefersSelfCheckout && customer.itemCount <= 15) {
+        // Last chance to check if a kiosk opened up
+        const kioskStation = this.findBestKioskStation(customer);
+        if (kioskStation && kioskStation.queue.length <= 1) {
+          // Redirect to kiosk if one is now available with short queue
+          kioskStation.queue.push(customer);
+          if (!kioskStation.servingCustomer) {
+            this.startService(kioskStation);
+          }
+          processedCount++;
+          continue;
+        }
+      }
+      
+      // Add to regular checkout station
       availableStation.queue.push(customer);
+      
+      // Update peak queue length tracking
+      this.metrics.peakQueueLength = Math.max(
+        this.metrics.peakQueueLength,
+        availableStation.queue.length
+      );
       
       // If station is idle, start service immediately
       if (!availableStation.servingCustomer) {
         this.startService(availableStation);
+      }
+      
+      processedCount++;
+    }
+    
+    // Additional optimization: Balance queues if there's significant imbalance
+    this.balanceRegularCheckoutQueues();
+  }
+
+  /**
+   * Balance regular checkout queues to prevent one station from becoming overloaded
+   */
+  private balanceRegularCheckoutQueues(): void {
+    const regularStations = this.stations.filter(s => s.isActive && s.type === 'regular');
+    if (regularStations.length <= 1) return;
+    
+    // Find the station with the longest queue and shortest queue
+    const sortedByQueue = regularStations.sort((a, b) => b.queue.length - a.queue.length);
+    const longestQueue = sortedByQueue[0];
+    const shortestQueue = sortedByQueue[sortedByQueue.length - 1];
+    
+    // If there's a significant imbalance (more than 3 customers difference)
+    const queueDifference = longestQueue.queue.length - shortestQueue.queue.length;
+    if (queueDifference > 3 && !shortestQueue.servingCustomer && longestQueue.queue.length > 2) {
+      // Move one customer from longest to shortest queue
+      const customerToMove = longestQueue.queue.pop();
+      if (customerToMove) {
+        shortestQueue.queue.unshift(customerToMove); // Add to front of shorter queue
+        
+        // Start service immediately if station was idle
+        if (!shortestQueue.servingCustomer) {
+          this.startService(shortestQueue);
+        }
       }
     }
   }
@@ -605,10 +725,39 @@ export class SimulationEngine {
     const customersBeingServed = busyStations.length;
     this.metrics.customersInSystem = currentQueueLength + customersBeingServed;
     
-    // Calculate realistic customer satisfaction based on multiple factors
-    const avgWaitTimeMinutes = this.metrics.averageWaitTime / 60;
+    // Calculate enhanced customer satisfaction
+    const newSatisfaction = this.calculateCustomerSatisfaction();
+    this.metrics.customerSatisfaction = Math.max(0, Math.min(100, newSatisfaction));
+    this.previousCustomerSatisfaction = this.metrics.customerSatisfaction;
     
-    // Base satisfaction on wait time (primary factor)
+    // Calculate comprehensive score based on multiple factors
+    // Score formula: Balance between efficiency, customer satisfaction, and throughput
+    const waitTimePenalty = Math.max(0, this.metrics.averageWaitTime / 60 - 2) * 50; // Penalty after 2 minutes
+    const utilizationBonus = this.metrics.utilization >= 0.6 && this.metrics.utilization <= 0.85 ? 100 : 0;
+    const throughputBonus = Math.min(200, this.metrics.throughput * 2); // Up to 200 points for high throughput
+    const satisfactionBonus = this.metrics.customerSatisfaction * 3; // Up to 300 points
+    const abandonmentPenalty = this.metrics.totalCustomersAbandoned * 25; // 25 point penalty per abandonment
+    
+    this.metrics.score = Math.max(0, 
+      500 + // Base score
+      utilizationBonus +
+      throughputBonus +
+      satisfactionBonus -
+      waitTimePenalty -
+      abandonmentPenalty
+    );
+    
+    this.lastUpdateTime = this.currentTime;
+  }
+
+  /**
+   * Calculate comprehensive customer satisfaction based on multiple factors
+   */
+  private calculateCustomerSatisfaction(): number {
+    const avgWaitTimeMinutes = this.metrics.averageWaitTime / 60;
+    const currentQueueLength = this.mainQueue.length + this.stations.reduce((sum, s) => sum + s.queue.length, 0);
+    
+    // Base satisfaction on wait time (primary factor - 60% weight)
     let waitTimeSatisfaction = 0;
     if (avgWaitTimeMinutes <= 1) {
       waitTimeSatisfaction = 100; // Excellent service
@@ -618,86 +767,59 @@ export class SimulationEngine {
       waitTimeSatisfaction = 80 - (avgWaitTimeMinutes - 2) * 20; // 80-60%
     } else if (avgWaitTimeMinutes <= 5) {
       waitTimeSatisfaction = 60 - (avgWaitTimeMinutes - 3) * 15; // 60-30%
+    } else if (avgWaitTimeMinutes <= 10) {
+      waitTimeSatisfaction = 30 - (avgWaitTimeMinutes - 5) * 4; // 30-10%
     } else {
-      waitTimeSatisfaction = Math.max(0, 30 - (avgWaitTimeMinutes - 5) * 5); // <30%
+      waitTimeSatisfaction = Math.max(5, 10 - (avgWaitTimeMinutes - 10) * 0.5); // Min 5%
     }
     
-    // Factor in queue length (secondary factor)
-    // Long queues decrease satisfaction even if service is fast
-    const queueLengthPenalty = Math.min(15, this.metrics.averageQueueLength * 2);
-    
-    // Factor in abandonment rate (tertiary factor)
-    const totalCustomers = this.metrics.totalCustomersServed + this.metrics.totalCustomersAbandoned;
-    const abandonmentRate = totalCustomers > 0 ? 
-      (this.metrics.totalCustomersAbandoned / totalCustomers) : 0;
-    const abandonmentPenalty = abandonmentRate * 20; // Up to 20% penalty for high abandonment
-    
-    // Calculate final satisfaction
-    this.metrics.customerSatisfaction = Math.max(0, Math.min(100, 
-      waitTimeSatisfaction - queueLengthPenalty - abandonmentPenalty));
-      
-    // Apply smoothing to avoid satisfaction jumping around too much
-    if (this.previousCustomerSatisfaction !== undefined) {
-      this.metrics.customerSatisfaction = 
-        0.7 * this.previousCustomerSatisfaction + 0.3 * this.metrics.customerSatisfaction;
+    // Queue length satisfaction (20% weight)
+    let queueSatisfaction = 0;
+    if (currentQueueLength <= 5) {
+      queueSatisfaction = 100;
+    } else if (currentQueueLength <= 10) {
+      queueSatisfaction = 100 - (currentQueueLength - 5) * 10; // 100-50%
+    } else if (currentQueueLength <= 20) {
+      queueSatisfaction = 50 - (currentQueueLength - 10) * 3; // 50-20%
+    } else {
+      queueSatisfaction = Math.max(10, 20 - (currentQueueLength - 20) * 0.5); // Min 10%
     }
     
-    // Store for next calculation
-    this.previousCustomerSatisfaction = this.metrics.customerSatisfaction;
-    
-    // Calculate realistic overall score using weighted components
-    const waitTimeScore = this.calculateWaitTimeScore(avgWaitTimeMinutes);
-    const utilizationScore = this.calculateUtilizationScore(this.metrics.serverUtilization);
-    const throughputScore = this.calculateThroughputScore(this.metrics.throughput);
-    
-    this.metrics.score = (waitTimeScore * 0.4) + (utilizationScore * 0.3) + (throughputScore * 0.3);
-    
-    // Update last update time
-    this.lastUpdateTime = this.currentTime;
-  }
-  
-  /**
-   * Calculate wait time score (0-100) with realistic targets for retail
-   */
-  private calculateWaitTimeScore(waitTimeMinutes: number): number {
-    if (waitTimeMinutes <= 1) return 100;
-    if (waitTimeMinutes <= 2) return 90;
-    if (waitTimeMinutes <= 3) return 75;
-    if (waitTimeMinutes <= 5) return 50;
-    if (waitTimeMinutes <= 7) return 25;
-    return 0;
-  }
-  
-  /**
-   * Calculate utilization score (0-100) with optimal range for service
-   */
-  private calculateUtilizationScore(utilization: number): number {
-    // Optimal utilization for service operations is 70-85%
-    if (utilization >= 0.7 && utilization <= 0.85) {
-      return 100;
-    } else if (utilization >= 0.6 && utilization < 0.7) {
-      return 70 + (utilization - 0.6) * 300; // Scale from 70-100
-    } else if (utilization > 0.85 && utilization <= 0.95) {
-      return 100 - (utilization - 0.85) * 500; // Scale from 100-50
+    // Service efficiency satisfaction (15% weight)
+    // Based on utilization - customers prefer efficient but not overloaded systems
+    let efficiencySatisfaction = 0;
+    const utilization = this.metrics.utilization;
+    if (utilization >= 0.6 && utilization <= 0.85) {
+      efficiencySatisfaction = 100; // Optimal range
     } else if (utilization < 0.6) {
-      return utilization * 100 / 0.6; // Scale from 0-70
+      efficiencySatisfaction = 70 + (utilization / 0.6) * 30; // 70-100%
     } else {
-      return Math.max(0, 50 - (utilization - 0.95) * 1000); // Rapidly decline after 95%
+      efficiencySatisfaction = Math.max(40, 100 - (utilization - 0.85) * 200); // Drops fast when overloaded
     }
-  }
-  
-  /**
-   * Calculate throughput score based on customer arrival rate
-   */
-  private calculateThroughputScore(throughput: number): number {
-    // Target throughput should match or exceed arrival rate
-    const targetThroughput = this.params.arrivalRate * 60; // Convert to customers per hour
-    const efficiency = throughput / Math.max(1, targetThroughput);
     
-    if (efficiency >= 0.95) return 100;
-    if (efficiency >= 0.8) return 80 + (efficiency - 0.8) * 133; // 80-100
-    if (efficiency >= 0.6) return 60 + (efficiency - 0.6) * 100; // 60-80
-    return efficiency * 100; // 0-60
+    // Abandonment penalty (5% weight)
+    let abandonmentSatisfaction = 100;
+    const totalCustomers = this.metrics.totalCustomersServed + this.metrics.totalCustomersAbandoned;
+    if (totalCustomers > 0) {
+      const abandonmentRate = this.metrics.totalCustomersAbandoned / totalCustomers;
+      abandonmentSatisfaction = Math.max(50, 100 - abandonmentRate * 200); // Heavy penalty for abandonment
+    }
+    
+    // Weighted combination
+    const totalSatisfaction = (
+      waitTimeSatisfaction * 0.6 +
+      queueSatisfaction * 0.2 +
+      efficiencySatisfaction * 0.15 +
+      abandonmentSatisfaction * 0.05
+    );
+    
+    // Apply smoothing to prevent jumps
+    const smoothingFactor = 0.8;
+    if (this.previousCustomerSatisfaction !== undefined) {
+      return this.previousCustomerSatisfaction * smoothingFactor + totalSatisfaction * (1 - smoothingFactor);
+    }
+    
+    return totalSatisfaction;
   }
 
   /**

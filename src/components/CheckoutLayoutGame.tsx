@@ -3,6 +3,8 @@ import { lazy, Suspense, useState, useEffect, useRef } from 'react';
 import { LayoutEditor } from './LayoutEditor';
 import { SimulationDashboard } from './SimulationDashboard';
 import { AdvancedAnalyticsDashboard } from './AdvancedAnalyticsDashboard';
+import { EnhancedMetricsDisplay } from './EnhancedMetricsDisplay';
+import { CustomerPreferenceLegend } from './CustomerPreferenceLegend';
 import { ParameterControls } from './ParameterControls';
 import { MetricsPanel } from './MetricsPanel';
 import { TutorialOverlay } from './TutorialOverlay';
@@ -458,6 +460,9 @@ export default function CheckoutLayoutGame() {
             </div>
           </div>
 
+          {/* Customer Preference Legend */}
+          <CustomerPreferenceLegend />
+
           {/* Parameter Controls - Shown conditionally */}
           {showSettings && (
             <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-5">
@@ -493,6 +498,14 @@ export default function CheckoutLayoutGame() {
               simulationData={context.simulationHistory || []}
               stations={context.stations}
               currentMetrics={context.metrics}
+            />
+          </div>
+          
+          {/* Enhanced Metrics Display */}
+          <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-5">
+            <EnhancedMetricsDisplay
+              currentMetrics={context.metrics}
+              stations={context.stations}
             />
           </div>
           

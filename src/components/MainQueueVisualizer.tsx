@@ -51,29 +51,57 @@ export function MainQueueVisualizer({ queue, isSimulating, simulationSpeed = 1 }
         </div>
         
         {/* Customer Icons */}
-        {queue.map((customer, index) => (
-          <div
-            key={customer.id}
-            className={`customer-icon absolute w-4 h-4 rounded-full customer-waiting ${
-              customer.prefersSelfCheckout ? 'bg-green-500' : 'bg-blue-500'
-            } ${simulationSpeed <= 0.1 ? 'ultra-slow-motion' : simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''}`}
-            style={{ 
-              boxShadow: '0 0 10px rgba(255, 255, 255, 0.5)',
-              transform: 'scale(1)',
-              left: queuePositions.positions[index]?.x || 0,
-              top: queuePositions.positions[index]?.y || 0,
-              transition: `all ${transitionTime}s ease`,
-              animationDuration: `${animationTime * 3}s`
-            } as React.CSSProperties}
-          >
-            {/* Item count indicator */}
-            {customer.itemCount > 10 && (
-              <span className="absolute -top-2 -right-2 text-xs bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center">
-                !
+        {queue.map((customer, index) => {
+          // Enhanced customer information for tooltips
+          const waitTimeMinutes = customer.waitTime ? (customer.waitTime / 60).toFixed(1) : 'New';
+          const customerType = customer.itemCount <= 10 ? 'Express-eligible' : 'Regular';
+          const paymentIcon = customer.paymentMethod === 'cash' ? '💵' : 
+                             customer.paymentMethod === 'voucher' ? '🎫' : '💳';
+          const preferenceIcon = customer.prefersSelfCheckout ? '🤖' : '👤';
+          
+          return (
+            <div
+              key={customer.id}
+              className={`customer-icon absolute w-4 h-4 rounded-full customer-waiting ${
+                customer.paymentMethod === 'cash' ? 'bg-yellow-500 ring-2 ring-yellow-300' : 
+                customer.paymentMethod === 'voucher' ? 'bg-purple-500 ring-2 ring-purple-300' :
+                customer.prefersSelfCheckout ? 'bg-green-500 ring-2 ring-green-300' : 'bg-blue-500 ring-2 ring-blue-300'
+              } ${simulationSpeed <= 0.1 ? 'ultra-slow-motion' : simulationSpeed <= 0.25 ? 'slow-motion-queue' : ''} 
+              hover:scale-125 cursor-pointer transition-transform duration-200`}
+              title={`${paymentIcon} ${customer.itemCount} items | ${preferenceIcon} ${customerType} | 
+                      Payment: ${customer.paymentMethod} | Wait: ${waitTimeMinutes}m | 
+                      ${customer.prefersSelfCheckout ? 'Prefers self-checkout' : 'Regular checkout'}
+                      ${customer.totalValue ? ` | Value: $${customer.totalValue.toFixed(2)}` : ''}`}
+              style={{ 
+                boxShadow: '0 0 15px rgba(255, 255, 255, 0.6)',
+                transform: 'scale(1)',
+                left: queuePositions.positions[index]?.x || 0,
+                top: queuePositions.positions[index]?.y || 0,
+                transition: `all ${transitionTime}s ease`,
+                animationDuration: `${animationTime * 3}s`,
+                zIndex: queue.length - index // Higher index = higher z-index for stacking
+              } as React.CSSProperties}
+            >
+              {/* Enhanced item count indicator */}
+              {customer.itemCount > 15 && (
+                <span className="absolute -top-3 -right-3 text-xs bg-red-600 text-white rounded-full w-4 h-4 flex items-center justify-center font-bold animate-pulse">
+                  !
+                </span>
+              )}
+              
+              {/* Payment method indicator */}
+              <span className="absolute -bottom-1 -right-1 text-xs">
+                {customer.paymentMethod === 'cash' ? '💵' : 
+                 customer.paymentMethod === 'voucher' ? '🎫' : '💳'}
               </span>
-            )}
-          </div>
-        ))}
+              
+              {/* Preference indicator */}
+              {customer.prefersSelfCheckout && (
+                <span className="absolute -top-1 -left-1 text-xs">🤖</span>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
