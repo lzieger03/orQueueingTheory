@@ -48,7 +48,8 @@ export default function CheckoutLayoutGame() {
     canStartSimulation,
     canPause,
     canResume,
-    canStop
+    canStop,
+    aiAgent
   } = useGameState();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -119,6 +120,27 @@ export default function CheckoutLayoutGame() {
       'Layout Loaded', 
       `${layoutName.charAt(0).toUpperCase() + layoutName.slice(1)} layout applied successfully!`
     );
+  };
+
+  // AI Learning handlers
+  const handleStartLearning = () => {
+    if (!context.isAIEnabled) {
+      enableAI();
+    }
+    if (aiAgent) {
+      const currentState = {
+        queueLengths: context.stations.map(s => s.queue.length),
+        activeStations: context.stations.filter(s => s.isActive).length,
+        dayType: context.simulationParams.dayType,
+        timeOfDay: Math.floor((context.currentTime / 3600) % 24)
+      };
+      aiAgent.startLearning(currentState, context.stations);
+    }
+  };
+
+  const handleStopLearning = () => {
+    // The AI agent automatically stops learning after reaching episode limit
+    // We could add manual stop functionality here if needed
   };
 
   // Apply AI recommendation to the store layout
@@ -543,10 +565,10 @@ export default function CheckoutLayoutGame() {
                     score: context.metrics.score || 0,
                   }}
                   onApplyRecommendation={applyAIRecommendation}
-                  isLearning={context.isAIEnabled && isRunning}
-                  onStartLearning={() => enableAI()}
-                  onStopLearning={() => {}}
-                  aiAgent={null}
+                  isLearning={aiAgent ? aiAgent.isLearning() : false}
+                  onStartLearning={handleStartLearning}
+                  onStopLearning={handleStopLearning}
+                  aiAgent={aiAgent}
                 />
               </Suspense>
             </div>

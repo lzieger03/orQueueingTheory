@@ -201,7 +201,6 @@ export class QLearningAgent {
         clearInterval(learningInterval);
         this.learningInProgress = false;
         this.learningProgress = 100;
-        console.log('Q-learning completed:', this.episodes, 'episodes');
       }
     }, 100);
   }

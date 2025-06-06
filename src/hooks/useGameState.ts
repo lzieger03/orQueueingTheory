@@ -240,7 +240,11 @@ export function useGameState() {
   // Enable AI
   const enableAI = useCallback(() => {
     send({ type: 'ENABLE_AI' });
-  }, [send]);
+    // Create AI agent immediately if it doesn't exist
+    if (!aiAgent) {
+      setAiAgent(new QLearningAgent());
+    }
+  }, [send, aiAgent]);
 
   // Generate AI recommendations
   const generateAIRecommendations = useCallback((): AIRecommendation[] => {
